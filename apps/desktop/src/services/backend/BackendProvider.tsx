@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useEffect, useMemo } from 'react';
 import type { BackendClient } from '@crowdash/shared';
+import { TauriBackendClient } from './TauriBackendClient';
 import { MockBackendClient } from '../mock/MockBackendClient';
 import { useAppStore } from '../../stores/appStore';
 import { useToast } from '../../components/ui/toast';
@@ -7,7 +8,11 @@ import { useToast } from '../../components/ui/toast';
 const BackendContext = createContext<BackendClient | null>(null);
 
 export function BackendProvider({ children }: { children: React.ReactNode }) {
-  const client = useMemo(() => new MockBackendClient(), []);
+  const client = useMemo(() => {
+    // If we're not inside Tauri, fallback to Mock to not break standard web dev
+    const isTauri = typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window;
+    return isTauri ? new TauriBackendClient() : new MockBackendClient();
+  }, []);
   const { setJobs, updateJob, setSettings } = useAppStore();
   const { showToast } = useToast();
 
