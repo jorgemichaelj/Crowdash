@@ -27,6 +27,8 @@ export function JobCard({ job }: { job: Job }) {
     switch (job.type) {
       case 'download':
         return <Download className="w-5 h-5 text-sky-400" />;
+      case 'batchDownload':
+        return <Download className="w-5 h-5 text-indigo-400" />;
       case 'trim':
         return <Scissors className="w-5 h-5 text-amber-400" />;
       case 'compress':
@@ -54,7 +56,9 @@ export function JobCard({ job }: { job: Job }) {
   };
 
   const title =
-    job.input.kind === 'url'
+    job.input.kind === 'batch'
+      ? `${job.input.title} (${job.input.itemCount} itens em ${job.input.options.mode === 'audio' ? 'MP3' : 'MP4'})`
+      : job.input.kind === 'url'
       ? job.input.title || job.input.url
       : job.input.name || job.input.path.split('\\').pop();
 

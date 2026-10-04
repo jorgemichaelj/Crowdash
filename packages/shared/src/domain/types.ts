@@ -4,7 +4,8 @@ export type JobType =
   | 'trim'
   | 'compress'
   | 'extractAudio'
-  | 'subtitle';
+  | 'subtitle'
+  | 'batchDownload';
 
 export type JobStatus = 'pending' | 'running' | 'completed' | 'failed' | 'cancelled';
 
@@ -34,7 +35,14 @@ export type FileOperationOptions =
 
 export type JobInput =
   | { kind: 'url'; url: string; title?: string; options: DownloadOptions }
-  | { kind: 'file'; path: string; name?: string; options: FileOperationOptions };
+  | { kind: 'file'; path: string; name?: string; options: FileOperationOptions }
+  | {
+      kind: 'batch';
+      title: string;
+      itemCount: number;
+      batchType: 'channel' | 'playlist';
+      options: DownloadOptions;
+    };
 
 export interface Job {
   id: string;
@@ -67,6 +75,11 @@ export interface MediaInfo {
   requiresLogin?: boolean; // conteúdo que exige sessão do usuário
   suggestions: Array<'download' | 'convert' | 'trim' | 'compress' | 'extractAudio'>;
   canStreamCopyTo?: string[]; // containers possíveis sem recodificar
+
+  // Suporte a Canais e Playlists
+  collectionType?: 'channel' | 'playlist';
+  channelName?: string;
+  itemCount?: number;
 }
 
 export interface BrowserSessionConsent {
