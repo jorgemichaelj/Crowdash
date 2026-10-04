@@ -5,11 +5,12 @@ import { Dialog } from '../../components/ui/overlays';
 import { SubtitleSettings } from '../subtitles/SubtitleSettings';
 import { TrimModalContent } from '../trim/TrimModal';
 import { CompressModalContent } from '../compress/CompressModal';
+import { ConvertModalContent } from '../convert/ConvertModal';
 import { useBackend } from '../../services/backend/BackendProvider';
 import { useToast } from '../../components/ui/toast';
 import { useAppStore } from '../../stores/appStore';
 import { useI18n } from '../../i18n';
-import type { MediaInfo, SubtitleOptions } from '@crowdash/shared';
+import type { MediaInfo, SubtitleOptions, OutputContainer } from '@crowdash/shared';
 import {
   Link,
   UploadCloud,
@@ -26,6 +27,7 @@ import {
   FolderOpen,
   ClipboardPaste,
   Layers,
+  Image as ImageIcon,
 } from 'lucide-react';
 
 export function HomeView() {
@@ -41,7 +43,7 @@ export function HomeView() {
   const [clipboardCandidate, setClipboardCandidate] = useState<string | null>(null);
 
   // Modais de ações contextuais
-  const [activeModal, setActiveModal] = useState<'trim' | 'compress' | null>(null);
+  const [activeModal, setActiveModal] = useState<'trim' | 'compress' | 'convert' | null>(null);
 
   // Opções para URL
   const [downloadMode, setDownloadMode] = useState<'video' | 'audio'>('video');
@@ -631,7 +633,7 @@ export function HomeView() {
                 <Button
                   variant="secondary"
                   size="md"
-                  onClick={() => handleFileAction('convert')}
+                  onClick={() => setActiveModal('convert')}
                   className="rounded-xl justify-start px-3"
                 >
                   <RefreshCw className="w-4 h-4 mr-2 text-sky-400" />
@@ -669,6 +671,40 @@ export function HomeView() {
           )}
         </Card>
       )}
+
+      {/* Modal de Conversão Universal de Formatos */}
+      <Dialog
+        isOpen={activeModal === 'convert'}
+        onClose={() => setActiveModal(null)}
+        title="Converter Formato de Mídia"
+      >
+        <ConvertModalContent
+          currentContainer={mediaInfo?.container || 'mp4'}
+          category={mediaInfo?.category || 'video'}
+          canStreamCopy={
+            mediaInfo?.canStreamCopyTo && mediaInfo.canStreamCopyTo.length > 0
+          }
+          onCancel={() => setActiveModal(null)}
+          onConvert={async (targetFormat, keepQuality) => {
+            await backend.enqueue({
+              kind: 'file',
+              path: inputVal,
+              options: {
+                op: 'convert',
+                container: targetFormat,
+                category: mediaInfo?.category || 'video',
+                keepQuality,
+              },
+            });
+            setActiveModal(null);
+            showToast(
+              `Conversão para .${targetFormat.toUpperCase()} adicionada à fila!`,
+              'success'
+            );
+            setCurrentTab('queue');
+          }}
+        />
+      </Dialog>
 
       {/* Modais de Corte e Compressão */}
       <Dialog

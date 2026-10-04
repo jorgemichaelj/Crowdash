@@ -13,6 +13,14 @@ export type EncoderKind = 'copy' | 'nvenc' | 'amf' | 'qsv' | 'cpu';
 
 export type JobOrigin = 'desktop' | 'extension';
 
+export type MediaCategory = 'video' | 'audio' | 'image';
+
+export type VideoFormat = 'mp4' | 'mkv' | 'webm' | 'mov' | 'avi' | 'wmv';
+export type AudioFormat = 'mp3' | 'wav' | 'm4a' | 'flac' | 'aac' | 'ogg';
+export type ImageFormat = 'png' | 'jpeg' | 'jpg' | 'webp' | 'ico' | 'avif';
+
+export type OutputContainer = VideoFormat | AudioFormat | ImageFormat;
+
 export interface SubtitleOptions {
   download: boolean;
   embed: boolean;
@@ -28,10 +36,15 @@ export interface DownloadOptions {
 }
 
 export type FileOperationOptions =
-  | { op: 'convert'; container: 'mp4' | 'mkv' | 'webm' | 'mp3' | 'm4a' }
+  | {
+      op: 'convert';
+      container: OutputContainer;
+      category?: MediaCategory;
+      keepQuality?: boolean;
+    }
   | { op: 'trim'; startSec: number; endSec: number; precise: boolean }
   | { op: 'compress'; targetSizeMB: number; preciseSize: boolean }
-  | { op: 'extractAudio'; format: 'mp3' | 'm4a' };
+  | { op: 'extractAudio'; format: 'mp3' | 'm4a' | 'wav' | 'flac' };
 
 export type JobInput =
   | { kind: 'url'; url: string; title?: string; options: DownloadOptions }
@@ -68,8 +81,10 @@ export interface MediaInfo {
   durationSec: number;
   thumbnailUrl?: string;
   container?: string;
+  category?: MediaCategory; // 'video' | 'audio' | 'image'
   video?: { codec: string; width: number; height: number; fps: number };
   audio?: { codec: string; channels: number };
+  image?: { width: number; height: number };
   estimatedSizeBytes?: number;
   availableQualities?: Array<'best' | '1080p' | '720p' | '480p'>;
   requiresLogin?: boolean; // conteúdo que exige sessão do usuário

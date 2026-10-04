@@ -155,32 +155,61 @@ export class MockBackendClient implements BackendClient {
 
   async analyzeFile(path: string): Promise<MediaInfo> {
     await new Promise((r) => setTimeout(r, 400));
-    const isMkv = path.toLowerCase().endsWith('.mkv');
-    const isWebm = path.toLowerCase().endsWith('.webm');
-    const isMp3 = path.toLowerCase().endsWith('.mp3');
+    const lower = path.toLowerCase();
+    const ext = lower.split('.').pop() || '';
 
+    const isImage = ['webp', 'png', 'jpg', 'jpeg', 'ico', 'avif', 'bmp'].includes(ext);
+    const isAudio = ['mp3', 'wav', 'm4a', 'flac', 'aac', 'ogg'].includes(ext);
+    const isVideo = ['mp4', 'mkv', 'webm', 'mov', 'avi', 'wmv'].includes(ext) || (!isImage && !isAudio);
+
+    if (isImage) {
+      return {
+        source: 'file',
+        title: path.split('\\').pop() || 'imagem.webp',
+        durationSec: 0,
+        container: ext,
+        category: 'image',
+        image: { width: 1920, height: 1080 },
+        estimatedSizeBytes: 2 * 1024 * 1024,
+        suggestions: ['convert'],
+        canStreamCopyTo: ['png', 'jpeg', 'webp'],
+      };
+    }
+
+    if (isAudio) {
+      return {
+        source: 'file',
+        title: path.split('\\').pop() || 'audio.mp3',
+        durationSec: 210,
+        container: ext,
+        category: 'audio',
+        audio: { codec: ext, channels: 2 },
+        estimatedSizeBytes: 8 * 1024 * 1024,
+        suggestions: ['convert', 'trim'],
+        canStreamCopyTo: ['mp3', 'm4a', 'wav'],
+      };
+    }
+
+    // Vídeo
     return {
       source: 'file',
-      title: path.split('\\').pop() || 'arquivo_local.mp4',
+      title: path.split('\\').pop() || 'video.mp4',
       durationSec: 180,
-      container: isMkv ? 'mkv' : isWebm ? 'webm' : isMp3 ? 'mp3' : 'mp4',
-      video: isMp3
-        ? undefined
-        : {
-            codec: isWebm ? 'vp9' : 'h264',
-            width: 1920,
-            height: 1080,
-            fps: 30,
-          },
+      container: ext || 'mp4',
+      category: 'video',
+      video: {
+        codec: ext === 'webm' ? 'vp9' : 'h264',
+        width: 1920,
+        height: 1080,
+        fps: 30,
+      },
       audio: {
-        codec: isMp3 ? 'mp3' : 'aac',
+        codec: 'aac',
         channels: 2,
       },
       estimatedSizeBytes: 35 * 1024 * 1024,
-      suggestions: isMp3
-        ? ['convert', 'trim']
-        : ['convert', 'trim', 'compress', 'extractAudio'],
-      canStreamCopyTo: isMkv ? ['mkv', 'mp4'] : ['mp4'],
+      suggestions: ['convert', 'trim', 'compress', 'extractAudio'],
+      canStreamCopyTo: ext === 'mkv' ? ['mkv', 'mp4'] : ['mp4'],
     };
   }
 

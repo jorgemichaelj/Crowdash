@@ -60,6 +60,8 @@ export function JobCard({ job }: { job: Job }) {
       ? `${job.input.title} (${job.input.itemCount} itens em ${job.input.options.mode === 'audio' ? 'MP3' : 'MP4'})`
       : job.input.kind === 'url'
       ? job.input.title || job.input.url
+      : job.input.options.op === 'convert'
+      ? `${job.input.name || job.input.path.split('\\').pop()} ➔ .${job.input.options.container.toUpperCase()}`
       : job.input.name || job.input.path.split('\\').pop();
 
   return (
