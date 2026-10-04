@@ -240,8 +240,32 @@ export function HomeView() {
               Cole uma URL ou solte arquivos de mídia
             </h2>
             <p className="text-xs text-muted-foreground">
-              Suporte a vídeos do YouTube, HLS, MP4, MKV, WebM, MP3 e muito mais
+              Suporta vídeos, músicas e imagens (.webp, .png, .jpg, .mp4, .mkv, .mp3, etc.)
             </p>
+          </div>
+
+          {/* Botão de Procurar no Computador */}
+          <div>
+            <input
+              type="file"
+              id="file-upload-input"
+              className="hidden"
+              accept="video/*,audio/*,image/*,.mkv,.webm,.flac,.webp,.avi,.mov"
+              onChange={(e) => {
+                if (e.target.files && e.target.files.length > 0) {
+                  const file = e.target.files[0];
+                  setInputVal(file.name);
+                  handleAnalyze(file.name);
+                }
+              }}
+            />
+            <label
+              htmlFor="file-upload-input"
+              className="inline-flex items-center gap-2 px-4 py-2 bg-muted hover:bg-muted/80 text-foreground text-xs font-medium rounded-xl border border-border cursor-pointer transition-colors shadow-xs"
+            >
+              <FolderOpen className="w-4 h-4 text-primary" />
+              Procurar Arquivo ou Foto no Computador
+            </label>
           </div>
 
           {/* Input central moderno com botão acoplado */}
