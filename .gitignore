@@ -1,0 +1,21 @@
+# Node & Dependencies
+node_modules/
+.pnpm-store/
+
+# Builds & Outputs
+dist/
+build/
+.crx/
+coverage/
+
+# Tauri
+src-tauri/target/
+
+# OS & Logs
+*.log
+.DS_Store
+Thumbs.db
+
+# IDE & Editor
+.vscode/
+.idea/

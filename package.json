@@ -1,0 +1,18 @@
+{
+  "name": "crowdash-root",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Crowdash - Uma ferramenta rápida e simples para baixar, converter, cortar e comprimir mídia",
+  "scripts": {
+    "build": "pnpm -r run build",
+    "test": "pnpm -r run test",
+    "lint": "pnpm -r run lint",
+    "dev:desktop": "pnpm --filter @crowdash/desktop dev",
+    "dev:extension": "pnpm --filter @crowdash/extension dev"
+  },
+  "devDependencies": {
+    "@types/node": "^22.13.0",
+    "typescript": "^5.7.3",
+    "vitest": "^3.0.5"
+  }
+}

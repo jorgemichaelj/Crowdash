@@ -1,0 +1,21 @@
+{
+  "manifest_version": 3,
+  "name": "Crowdash Companion",
+  "version": "0.1.0",
+  "description": "Detecção e captura de mídia para o aplicativo Crowdash.",
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Crowdash"
+  },
+  "permissions": [
+    "webRequest",
+    "downloads",
+    "storage",
+    "activeTab",
+    "nativeMessaging"
+  ],
+  "host_permissions": [
+    "http://*/*",
+    "https://*/*"
+  ]
+}

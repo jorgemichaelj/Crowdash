@@ -1,0 +1,1 @@
+{"root":["./src/index.ts","./src/backend/index.ts","./src/backend/types.ts","./src/domain/index.ts","./src/domain/types.ts","./src/errors/index.ts","./src/errors/messages.ts","./src/errors/types.ts","./src/protocol/index.ts","./src/protocol/types.ts"],"version":"5.9.3"}
