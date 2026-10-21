@@ -46,14 +46,28 @@ export type FileOperationOptions =
   | { op: 'compress'; targetSizeMB: number; preciseSize: boolean }
   | { op: 'extractAudio'; format: 'mp3' | 'm4a' | 'wav' | 'flac' };
 
+export type ChannelDownloadSelection =
+  | 'videosWithThumbnails' | 'videos' | 'shorts' | 'playlists' | 'thumbnails' | 'posts' | 'all';
+
 export type JobInput =
   | { kind: 'url'; url: string; title?: string; options: DownloadOptions }
   | { kind: 'file'; path: string; name?: string; options: FileOperationOptions }
   | {
       kind: 'batch';
       title: string;
-      itemCount: number;
-      batchType: 'channel' | 'playlist';
+      itemCount?: number;
+      batchType: 'playlist';
+      url: string;
+      options: DownloadOptions;
+    }
+  | {
+      kind: 'batch';
+      title: string;
+      itemCount?: number;
+      batchType: 'channel';
+      url: string;
+      channelName: string;
+      selection: ChannelDownloadSelection;
       options: DownloadOptions;
     };
 
@@ -92,6 +106,8 @@ export interface MediaInfo {
   canStreamCopyTo?: string[]; // containers possíveis sem recodificar
 
   // Suporte a Canais e Playlists
+  canonicalUrl?: string;
+  playlistUrl?: string; // explicit playlist action; never populated for a generated Mix/radio
   collectionType?: 'channel' | 'playlist';
   channelName?: string;
   itemCount?: number;

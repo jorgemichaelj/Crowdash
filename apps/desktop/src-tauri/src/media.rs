@@ -63,160 +63,48 @@ pub struct MediaInfo {
     pub channel_name: Option<String>,
     #[serde(rename = "itemCount", skip_serializing_if = "Option::is_none")]
     pub item_count: Option<u32>,
+    #[serde(rename = "canonicalUrl", skip_serializing_if = "Option::is_none")]
+    pub canonical_url: Option<String>,
+    #[serde(rename = "playlistUrl", skip_serializing_if = "Option::is_none")]
+    pub playlist_url: Option<String>,
 }
 
 // ─── Análise de URL ───────────────────────────────────────────────────────────
 
-pub fn analyze_url(url: &str) -> Result<MediaInfo> {
+pub async fn analyze_url(url: &str) -> Result<MediaInfo> {
+    use crowdash_download_core::{classify_url, read_metadata, MediaUrl};
     let ytdlp = find_ytdlp();
-
-    // Detectar playlist ou canal antes de chamar yt-dlp (mais rápido)
-    let is_playlist = url.contains("list=") || url.contains("/playlist");
-    let is_channel = url.contains("/@")
-        || url.contains("/channel/")
-        || url.contains("/c/")
-        || (url.contains("youtube.com") && !url.contains("watch"));
-
-    if is_playlist && !url.contains("watch") {
-        return analyze_playlist(url, &ytdlp);
-    }
-    if is_channel && !url.contains("watch") && !url.contains("list=") {
-        return analyze_channel(url, &ytdlp);
-    }
-
-    // Vídeo único: yt-dlp --dump-json
-    let output = Command::new(&ytdlp)
-        .args([
-            "--no-warnings",
-            "--no-playlist",
-            "--dump-json",
-            "--skip-download",
-            url,
-        ])
-        .output()
-        .map_err(|e| anyhow!("Falha ao executar yt-dlp: {}", e))?;
-
-    if !output.status.success() {
-        let stderr = String::from_utf8_lossy(&output.stderr);
-        tracing::warn!("yt-dlp stderr: {}", stderr);
-
-        // Verificar tipo de erro
-        if stderr.contains("Private video") || stderr.contains("Sign in") || stderr.contains("HTTP Error 403") {
-            return Err(anyhow!("LOGIN_REQUIRED"));
+    match classify_url(url)? {
+        MediaUrl::Channel { url, name } => {
+            // One flat entry is enough to resolve a channel name. Never enumerate its catalog here.
+            let json = read_metadata(&ytdlp, &url, true).await?;
+            let channel_name = json["channel"].as_str().or_else(|| json["uploader"].as_str()).unwrap_or(&name).to_string();
+            Ok(MediaInfo {
+                source: "url".into(), title: format!("Canal: {channel_name}"),
+                channel_name: Some(channel_name), collection_type: Some("channel".into()),
+                canonical_url: Some(url), suggestions: vec!["download".into()],
+                ..MediaInfo::empty()
+            })
         }
-        if stderr.contains("is not available") || stderr.contains("not supported") {
-            return Err(anyhow!("UNSUPPORTED_FORMAT"));
+        MediaUrl::Playlist { url } => {
+            let json = read_metadata(&ytdlp, &url, true).await?;
+            // playlist_count is provider metadata; entries.len() is only our one-entry sample.
+            let count = json["playlist_count"].as_u64().and_then(|n| u32::try_from(n).ok());
+            Ok(MediaInfo {
+                source: "url".into(), title: json["title"].as_str().unwrap_or("Playlist").into(),
+                collection_type: Some("playlist".into()), item_count: count,
+                canonical_url: Some(url), suggestions: vec!["download".into()],
+                ..MediaInfo::empty()
+            })
         }
-        return Err(anyhow!("NETWORK"));
+        MediaUrl::Video { url, playlist_url } => {
+            let json = read_metadata(&ytdlp, &url, false).await?;
+            let mut info = parse_ytdlp_single_video(&json, &url)?;
+            info.canonical_url = Some(url);
+            info.playlist_url = playlist_url;
+            Ok(info)
+        }
     }
-
-    let stdout = String::from_utf8_lossy(&output.stdout);
-    let json: Value = serde_json::from_str(&stdout)
-        .map_err(|e| anyhow!("Falha ao parsear JSON do yt-dlp: {}", e))?;
-
-    parse_ytdlp_single_video(&json, url)
-}
-
-fn analyze_playlist(url: &str, ytdlp: &str) -> Result<MediaInfo> {
-    // Buscar apenas metadados da playlist (sem baixar cada vídeo)
-    let output = Command::new(ytdlp)
-        .args([
-            "--no-warnings",
-            "--flat-playlist",
-            "--dump-single-json",
-            url,
-        ])
-        .output()
-        .map_err(|e| anyhow!("Falha ao executar yt-dlp: {}", e))?;
-
-    if !output.status.success() {
-        return Err(anyhow!("NETWORK"));
-    }
-
-    let stdout = String::from_utf8_lossy(&output.stdout);
-    let json: Value = serde_json::from_str(&stdout).unwrap_or_default();
-
-    let title = json["title"].as_str().unwrap_or("Playlist").to_string();
-    let item_count = json["entries"].as_array().map(|e| e.len() as u32).unwrap_or(0);
-    let thumbnail = json["thumbnails"]
-        .as_array()
-        .and_then(|t| t.last())
-        .and_then(|t| t["url"].as_str())
-        .map(String::from);
-
-    Ok(MediaInfo {
-        source: "url".to_string(),
-        title,
-        duration_sec: 0.0,
-        thumbnail_url: thumbnail,
-        collection_type: Some("playlist".to_string()),
-        item_count: Some(item_count),
-        suggestions: vec!["download".to_string()],
-        available_qualities: Some(vec![
-            "best".to_string(),
-            "1080p".to_string(),
-            "720p".to_string(),
-            "480p".to_string(),
-        ]),
-        can_stream_copy_to: Some(vec!["mp4".to_string()]),
-        ..MediaInfo::empty()
-    })
-}
-
-fn analyze_channel(url: &str, ytdlp: &str) -> Result<MediaInfo> {
-    // Extrair nome do canal da URL
-    let channel_name = extract_channel_name(url);
-
-    // Contar vídeos do canal (limitado a 1000 para performance)
-    let output = Command::new(ytdlp)
-        .args([
-            "--no-warnings",
-            "--flat-playlist",
-            "--dump-single-json",
-            "--playlist-end",
-            "1000",
-            url,
-        ])
-        .output()
-        .map_err(|e| anyhow!("Falha ao executar yt-dlp: {}", e))?;
-
-    let item_count = if output.status.success() {
-        let stdout = String::from_utf8_lossy(&output.stdout);
-        let json: Value = serde_json::from_str(&stdout).unwrap_or_default();
-        json["entries"].as_array().map(|e| e.len() as u32).unwrap_or(0)
-    } else {
-        0
-    };
-
-    Ok(MediaInfo {
-        source: "url".to_string(),
-        title: format!("Canal: {}", channel_name),
-        duration_sec: 0.0,
-        collection_type: Some("channel".to_string()),
-        channel_name: Some(channel_name),
-        item_count: Some(item_count),
-        suggestions: vec!["download".to_string()],
-        available_qualities: Some(vec![
-            "best".to_string(),
-            "1080p".to_string(),
-            "720p".to_string(),
-            "480p".to_string(),
-        ]),
-        can_stream_copy_to: Some(vec!["mp4".to_string()]),
-        ..MediaInfo::empty()
-    })
-}
-
-fn extract_channel_name(url: &str) -> String {
-    let re = regex::Regex::new(r"/@([a-zA-Z0-9_\-]+)").unwrap();
-    if let Some(caps) = re.captures(url) {
-        return caps[1].to_string();
-    }
-    let re2 = regex::Regex::new(r"/c/([a-zA-Z0-9_\-]+)").unwrap();
-    if let Some(caps) = re2.captures(url) {
-        return caps[1].to_string();
-    }
-    "Canal".to_string()
 }
 
 fn parse_ytdlp_single_video(json: &Value, _url: &str) -> Result<MediaInfo> {
@@ -496,6 +384,8 @@ impl MediaInfo {
             collection_type: None,
             channel_name: None,
             item_count: None,
+            canonical_url: None,
+            playlist_url: None,
         }
     }
 }

@@ -10,6 +10,7 @@ import {
   JobEvent,
   createUserFacingError,
   EncoderKind,
+  classifyMediaUrl,
 } from '@crowdash/shared';
 
 export class MockBackendClient implements BackendClient {
@@ -93,28 +94,24 @@ export class MockBackendClient implements BackendClient {
 
     const requiresLogin = url.includes('fail-login') || url.includes('private');
 
-    // Detecção de Playlist do YouTube
-    if (url.includes('list=') || url.includes('/playlist')) {
+    const classified = classifyMediaUrl(url);
+
+    if (classified.kind === 'playlist') {
       return {
         source: 'url',
         title: 'Playlist Especial de Músicas & Vídeos',
         durationSec: 3600,
         thumbnailUrl: 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=500&q=80',
         collectionType: 'playlist',
-        itemCount: 24,
+        canonicalUrl: classified.url,
         suggestions: ['download'],
         availableQualities: ['best', '1080p', '720p', '480p'],
         canStreamCopyTo: ['mp4'],
       };
     }
 
-    // Detecção de Canal do YouTube (@nome, /c/, /channel/)
-    if (url.includes('/@') || url.includes('/channel/') || url.includes('/c/')) {
-      let channelName = 'Canal Oficial';
-      const atMatch = url.match(/@([a-zA-Z0-9_\-]+)/);
-      if (atMatch && atMatch[1]) {
-        channelName = atMatch[1];
-      }
+    if (classified.kind === 'channel') {
+      const channelName = classified.name;
       return {
         source: 'url',
         title: `Canal: ${channelName}`,
@@ -122,7 +119,7 @@ export class MockBackendClient implements BackendClient {
         thumbnailUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=500&q=80',
         collectionType: 'channel',
         channelName,
-        itemCount: 58,
+        canonicalUrl: classified.url,
         suggestions: ['download'],
         availableQualities: ['best', '1080p', '720p', '480p'],
         canStreamCopyTo: ['mp4'],
@@ -132,6 +129,8 @@ export class MockBackendClient implements BackendClient {
     return {
       source: 'url',
       title: 'Amostra de Demonstração de Vídeo Alta Qualidade',
+      canonicalUrl: classified.url,
+      playlistUrl: classified.playlistUrl,
       durationSec: 245,
       thumbnailUrl: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=500&q=80',
       container: 'mp4',

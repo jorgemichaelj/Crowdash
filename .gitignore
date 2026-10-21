@@ -9,7 +9,7 @@ build/
 coverage/
 
 # Tauri
-src-tauri/target/
+**/src-tauri/target/
 
 # OS & Logs
 *.log
@@ -19,3 +19,6 @@ Thumbs.db
 # IDE & Editor
 .vscode/
 .idea/
+
+# Headless downloader core
+/crates/download-core/target/

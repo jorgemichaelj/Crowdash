@@ -51,6 +51,12 @@ Para carregar a extensão no Chrome/Edge:
 2. Ative o **Modo do desenvolvedor**.
 3. Clique em **Carregar sem compactação** e selecione a pasta `apps/extension/dist` (após rodar `pnpm -r run build`).
 
+### Downloads de vídeos, playlists e canais
+
+Links de Mix/rádio são tratados como vídeo individual. Playlists exigem uma escolha explícita; canais abrem opções de vídeos, shorts, playlists, thumbnails e publicações, com pastas por canal e conteúdo selecionado.
+
+O modo web usa o simulador. Downloads reais usam `pnpm dev:native`, com os pré-requisitos do Tauri 2, yt-dlp e FFmpeg instalados. Veja [o fluxo de downloads do YouTube](docs/DOWNLOADS_YOUTUBE.md) para formatos, estrutura de pastas e comandos de validação do núcleo Rust.
+
 ### Rodar os Testes Automatizados
 ```bash
 pnpm test

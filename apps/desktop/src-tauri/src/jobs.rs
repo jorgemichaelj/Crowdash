@@ -8,6 +8,8 @@ use tokio::sync::Mutex;
 use tauri::{AppHandle, Emitter};
 use uuid::Uuid;
 use chrono::Utc;
+use crowdash_download_core::{classify_url, channel_plan, format_args, step_args, ChannelSelection, DownloadStep, MediaUrl};
+use std::path::Path;
 
 use crate::settings::AppSettings;
 use crate::hardware::{find_ffmpeg, find_ytdlp, find_ffprobe};
@@ -76,12 +78,14 @@ pub enum JobInput {
     Batch {
         title: String,
         #[serde(rename = "itemCount")]
-        item_count: u32,
+        item_count: Option<u32>,
         #[serde(rename = "batchType")]
         batch_type: String,
         options: DownloadOptions,
-        // URL do canal/playlist (passada como campo extra)
-        url: Option<String>,
+        url: String,
+        selection: Option<ChannelSelection>,
+        #[serde(rename = "channelName")]
+        channel_name: Option<String>,
     },
 }
 
@@ -144,6 +148,7 @@ pub struct JobManager {
     jobs: HashMap<String, Job>,
     app: AppHandle,
     pub settings: AppSettings,
+    pub queue_active: bool,
     pub running_pid: Option<u32>, // PID do processo filho atual
 }
 
@@ -154,6 +159,7 @@ impl JobManager {
             app,
             settings,
             running_pid: None,
+            queue_active: false,
         }
     }
 
@@ -217,10 +223,6 @@ impl JobManager {
         jobs.first().map(|j| j.id.clone())
     }
 
-    pub fn any_running(&self) -> bool {
-        self.jobs.values().any(|j| j.status == JobStatus::Running)
-    }
-
     pub fn update_settings(&mut self, settings: AppSettings) {
         self.settings = settings;
     }
@@ -270,9 +272,8 @@ pub async fn run_job(
         JobInput::File { path, options, .. } => {
             run_file_job(&job_id, path, options, &output_folder, &hw_accel, manager.clone()).await
         }
-        JobInput::Batch { url, options, title, batch_type, .. } => {
-            let url = url.clone().unwrap_or_default();
-            run_batch_job(&job_id, &url, options, &output_folder, batch_type, manager.clone()).await
+        JobInput::Batch { url, options, batch_type, selection, channel_name, .. } => {
+            run_batch_job(&job_id, url, options, &output_folder, batch_type, *selection, channel_name.as_deref(), manager.clone()).await
         }
     };
 
@@ -282,7 +283,7 @@ pub async fn run_job(
         match result {
             Ok(output_path) => {
                 if let Some(job) = mgr.get_job_mut(&job_id) {
-                    if job.status == JobStatus::Cancelled {
+                    if job.status != JobStatus::Running {
                         return;
                     }
                     job.status = JobStatus::Completed;
@@ -305,7 +306,7 @@ pub async fn run_job(
                 let user_error = map_error_to_user_facing(&error_str);
 
                 if let Some(job) = mgr.get_job_mut(&job_id) {
-                    if job.status == JobStatus::Cancelled {
+                    if job.status != JobStatus::Running {
                         return;
                     }
                     job.status = JobStatus::Failed;
@@ -335,54 +336,15 @@ async fn run_download_job(
     output_folder: &str,
     manager: Arc<Mutex<JobManager>>,
 ) -> Result<String> {
-    let ytdlp = find_ytdlp();
-    let output_template = format!("{}\\%(title)s.%(ext)s", output_folder);
-
-    // Montar argumentos do yt-dlp
-    let mut args: Vec<String> = vec![
-        "--no-warnings".to_string(),
-        "--progress".to_string(),
-        "--newline".to_string(),
-        "--no-playlist".to_string(),
-    ];
-
-    if options.mode == "audio" {
-        args.extend([
-            "-x".to_string(),
-            "--audio-format".to_string(),
-            options.container.clone(),
-            "--audio-quality".to_string(),
-            "0".to_string(),
-        ]);
-    } else {
-        // Qualidade de vídeo
-        let format_str = match options.quality.as_str() {
-            "1080p" => "bestvideo[height<=1080]+bestaudio/best[height<=1080]",
-            "720p"  => "bestvideo[height<=720]+bestaudio/best[height<=720]",
-            "480p"  => "bestvideo[height<=480]+bestaudio/best[height<=480]",
-            _       => "bestvideo+bestaudio/best",
-        };
-        args.extend([
-            "-f".to_string(),
-            format_str.to_string(),
-            "--merge-output-format".to_string(),
-            options.container.clone(),
-        ]);
-    }
-
-    args.extend([
-        "-o".to_string(),
-        output_template.clone(),
-        url.to_string(),
-    ]);
-
-    emit_log(job_id, &format!("yt-dlp {}", args.join(" ")), manager.clone()).await;
-
-    run_with_progress(job_id, &ytdlp, &args, ProgressParser::YtDlp, manager.clone()).await?;
-
-    // Descobrir arquivo de saída
-    let output_file = find_latest_file(output_folder)?;
-    Ok(output_file)
+    let MediaUrl::Video { url, .. } = classify_url(url)? else {
+        return Err(anyhow!("URL_INVALID: escolha explicitamente uma playlist ou um canal"));
+    };
+    std::fs::create_dir_all(output_folder)?;
+    let mut args: Vec<String> = ["--ignore-config", "--no-warnings", "--no-simulate", "--progress", "--newline", "--no-playlist", "--socket-timeout", "30", "--retries", "3", "--windows-filenames"].map(String::from).to_vec();
+    args.extend(format_args(&options.mode, &options.quality, &options.container)?);
+    args.extend(["-P".into(), output_folder.into(), "-o".into(), "%(title)s [%(id)s].%(ext)s".into(), "--print".into(), "after_move:CROWDASH_FILE:%(filepath)s".into(), "--".into(), url]);
+    run_with_progress(job_id, &find_ytdlp(), &args, ProgressParser::YtDlp, manager).await?
+        .ok_or_else(|| anyhow!("Nenhum arquivo de saída foi informado pelo yt-dlp"))
 }
 
 // ─── Batch Download (canal/playlist) ─────────────────────────────────────────
@@ -393,51 +355,76 @@ async fn run_batch_job(
     options: &DownloadOptions,
     output_folder: &str,
     batch_type: &str,
+    selection: Option<ChannelSelection>,
+    channel_name: Option<&str>,
     manager: Arc<Mutex<JobManager>>,
 ) -> Result<String> {
-    let ytdlp = find_ytdlp();
-    let output_template = format!("{}\\%(playlist_title)s\\%(playlist_index)s - %(title)s.%(ext)s", output_folder);
-
-    let mut args: Vec<String> = vec![
-        "--no-warnings".to_string(),
-        "--progress".to_string(),
-        "--newline".to_string(),
-        "--yes-playlist".to_string(),
-    ];
-
-    if options.mode == "audio" {
-        args.extend([
-            "-x".to_string(),
-            "--audio-format".to_string(),
-            options.container.clone(),
-            "--audio-quality".to_string(),
-            "0".to_string(),
-        ]);
-    } else {
-        let format_str = match options.quality.as_str() {
-            "1080p" => "bestvideo[height<=1080]+bestaudio/best[height<=1080]",
-            "720p"  => "bestvideo[height<=720]+bestaudio/best[height<=720]",
-            "480p"  => "bestvideo[height<=480]+bestaudio/best[height<=480]",
-            _       => "bestvideo+bestaudio/best",
+    let (root, steps) = if batch_type == "channel" {
+        let MediaUrl::Channel { name, .. } = classify_url(url)? else { return Err(anyhow!("URL_INVALID")); };
+        channel_plan(url, channel_name.unwrap_or(&name), selection.ok_or_else(|| anyhow!("Selecione o conteúdo do canal"))?, Path::new(output_folder))?
+    } else if batch_type == "playlist" {
+        let MediaUrl::Playlist { url } = classify_url(url)? else { return Err(anyhow!("URL_INVALID")); };
+        (Path::new(output_folder).to_path_buf(), vec![DownloadStep { url, folder: Path::new(output_folder).join("playlists"), playlists: true, thumbnails: false, thumbnail_only: false, posts: false }])
+    } else { return Err(anyhow!("Tipo de coleção inválido")); };
+    for (index, step) in steps.iter().enumerate() {
+        if is_cancelled(job_id, &manager).await { return Err(anyhow!("CANCELLED")); }
+        std::fs::create_dir_all(&step.folder)?;
+        if step.thumbnails && !step.thumbnail_only {
+            std::fs::create_dir_all(root.join("thumbs"))?;
+        }
+        emit_log(job_id, &format!("Etapa {}/{}: {}", index + 1, steps.len(), step.folder.display()), manager.clone()).await;
+        let result = if step.posts {
+            export_posts(job_id, url, &step.folder, manager.clone()).await
+        } else {
+            let args = step_args(step, &options.mode, &options.quality, &options.container)?;
+            run_with_progress(job_id, &find_ytdlp(), &args, ProgressParser::YtDlp, manager.clone()).await.map(|_| ())
         };
-        args.extend([
-            "-f".to_string(),
-            format_str.to_string(),
-            "--merge-output-format".to_string(),
-            options.container.clone(),
-        ]);
+        if let Err(error) = result {
+            let message = error.to_string();
+            // Channels need not have every tab; skip only a confirmed absent section.
+            if selection == Some(ChannelSelection::All) && (message.contains("SECTION_UNAVAILABLE") || message.contains("does not have a") || message.contains("doesn't have a")) {
+                emit_log(job_id, &format!("Seção não disponível neste canal: {}", step.url), manager.clone()).await;
+            } else { return Err(error); }
+        }
     }
+    Ok(root.to_string_lossy().into_owned())
+}
 
-    args.extend([
-        "-o".to_string(),
-        output_template.clone(),
-        url.to_string(),
-    ]);
+async fn is_cancelled(job_id: &str, manager: &Arc<Mutex<JobManager>>) -> bool {
+    let mgr = manager.lock().await;
+    mgr.get_job(job_id).is_none_or(|j| j.status != JobStatus::Running)
+}
 
-    emit_log(job_id, &format!("Baixando {} {}...", batch_type, url), manager.clone()).await;
-    run_with_progress(job_id, &ytdlp, &args, ProgressParser::YtDlp, manager.clone()).await?;
-
-    Ok(output_folder.to_string())
+async fn export_posts(job_id: &str, url: &str, folder: &Path, manager: Arc<Mutex<JobManager>>) -> Result<()> {
+    use crowdash_download_core::posts::{PostsClient, save_posts};
+    use std::collections::HashSet;
+    let (client, mut page) = PostsClient::open(url).await?;
+    let mut posts = Vec::new();
+    let mut seen_posts = HashSet::new();
+    let mut seen_tokens = HashSet::new();
+    loop {
+        for mut post in page.posts {
+            if is_cancelled(job_id, &manager).await { return Err(anyhow!("CANCELLED")); }
+            if !seen_posts.insert(post.id.clone()) { continue; }
+            for (index, url) in post.images.iter().enumerate() {
+                let images = folder.join("imagens");
+                std::fs::create_dir_all(&images)?;
+                let (data, extension) = client.image(url).await?;
+                let file = format!("{}-{}.{}", post.id, index + 1, extension);
+                std::fs::write(images.join(&file), data)?;
+                post.local_images.push(format!("imagens/{file}"));
+            }
+            posts.push(post);
+        }
+        // Save each completed page so an interrupted export retains its progress.
+        save_posts(folder, &posts)?;
+        emit_log(job_id, &format!("{} publicações exportadas", posts.len()), manager.clone()).await;
+        let Some(token) = page.continuation else { break; };
+        if !seen_tokens.insert(token.clone()) { return Err(anyhow!("A paginação das publicações se repetiu; exportação parcial preservada")); }
+        if is_cancelled(job_id, &manager).await { return Err(anyhow!("CANCELLED")); }
+        page = client.next_page(&token).await?;
+    }
+    Ok(())
 }
 
 // ─── Operações de arquivo (FFmpeg) ───────────────────────────────────────────
@@ -674,80 +661,64 @@ async fn run_with_progress(
     args: &[String],
     parser: ProgressParser,
     manager: Arc<Mutex<JobManager>>,
-) -> Result<()> {
-    use tokio::io::{AsyncBufReadExt, BufReader};
-    use tokio::process::Command as TokioCommand;
-
-    let mut child = TokioCommand::new(binary)
-        .args(args)
-        .stdout(std::process::Stdio::piped())
-        .stderr(std::process::Stdio::piped())
-        .spawn()
-        .map_err(|e| anyhow!("Falha ao iniciar {}: {}", binary, e))?;
-
-    let pid = child.id();
-
-    // Registrar PID para cancelamento futuro
-    {
-        let mut mgr = manager.lock().await;
-        mgr.running_pid = pid;
+) -> Result<Option<String>> {
+    use tokio::io::{AsyncBufReadExt, AsyncRead, BufReader};
+    async fn read_lines<R: AsyncRead + Unpin>(stream: R, sender: tokio::sync::mpsc::Sender<String>) {
+        let mut lines = BufReader::new(stream).lines();
+        while let Ok(Some(line)) = lines.next_line().await {
+            if sender.send(line).await.is_err() { break; }
+        }
     }
-
-    let stderr = child.stderr.take().expect("stderr");
-    let mut lines = BufReader::new(stderr).lines();
-
-    let jid = job_id.to_string();
-    let mgr_clone = manager.clone();
-
-    // Processar saída linha a linha
-    while let Ok(Some(line)) = lines.next_line().await {
-        // Verificar se foi cancelado
-        {
-            let mgr = mgr_clone.lock().await;
-            if let Some(job) = mgr.get_job(&jid) {
-                if job.status == JobStatus::Cancelled {
+    if is_cancelled(job_id, &manager).await { return Err(anyhow!("CANCELLED")); }
+    let mut child = tokio::process::Command::new(binary).args(args)
+        .kill_on_drop(true)
+        .stdout(std::process::Stdio::piped()).stderr(std::process::Stdio::piped())
+        .spawn().map_err(|e| anyhow!("Falha ao iniciar {}: {}", binary, e))?;
+    manager.lock().await.running_pid = child.id();
+    let (sender, mut receiver) = tokio::sync::mpsc::channel(128);
+    let stdout_task = tokio::spawn(read_lines(child.stdout.take().unwrap(), sender.clone()));
+    let stderr_task = tokio::spawn(read_lines(child.stderr.take().unwrap(), sender));
+    let mut poll = tokio::time::interval(std::time::Duration::from_millis(200));
+    let mut output_path = None;
+    let mut diagnostics = std::collections::VecDeque::new();
+    loop {
+        tokio::select! {
+            _ = poll.tick() => {
+                if is_cancelled(job_id, &manager).await {
+                    #[cfg(target_os = "windows")]
+                    if let Some(pid) = child.id() {
+                        let _ = tokio::process::Command::new("taskkill").args(["/T", "/F", "/PID", &pid.to_string()]).output().await;
+                    }
                     let _ = child.kill().await;
-                    return Ok(());
+                    stdout_task.abort(); stderr_task.abort();
+                    manager.lock().await.running_pid = None;
+                    return Err(anyhow!("CANCELLED"));
                 }
             }
-        }
-
-        let progress = match &parser {
-            ProgressParser::FFmpeg { total_duration } => {
-                parse_ffmpeg_progress(&line, *total_duration)
+            line = receiver.recv() => {
+                let Some(line) = line else { break; };
+                if let Some(path) = line.strip_prefix("CROWDASH_FILE:") { output_path = Some(path.to_string()); }
+                let progress = match parser {
+                    ProgressParser::FFmpeg { total_duration } => parse_ffmpeg_progress(&line, total_duration),
+                    ProgressParser::YtDlp => parse_ytdlp_progress(&line),
+                };
+                if let Some(progress) = progress {
+                    let mut mgr = manager.lock().await;
+                    if let Some(job) = mgr.get_job_mut(job_id) { job.progress = progress; }
+                    mgr.emit_event(JobEvent::Progress { job_id: job_id.into(), progress, speed_bytes_per_sec: None, eta_seconds: None });
+                }
+                if diagnostics.len() >= 20 { diagnostics.pop_front(); }
+                diagnostics.push_back(line);
             }
-            ProgressParser::YtDlp => parse_ytdlp_progress(&line),
-        };
-
-        if let Some(pct) = progress {
-            let mut mgr = mgr_clone.lock().await;
-            if let Some(job) = mgr.get_job_mut(&jid) {
-                job.progress = pct;
-            }
-            mgr.emit_event(JobEvent::Progress {
-                job_id: jid.clone(),
-                progress: pct,
-                speed_bytes_per_sec: None,
-                eta_seconds: None,
-            });
         }
     }
-
-    let status = child.wait().await
-        .map_err(|e| anyhow!("Erro ao aguardar processo: {}", e))?;
-
-    // Limpar PID
-    {
-        let mut mgr = manager.lock().await;
-        mgr.running_pid = None;
-    }
-
+    let status = child.wait().await;
+    manager.lock().await.running_pid = None;
+    let status = status.map_err(|e| anyhow!("Erro ao aguardar processo: {}", e))?;
     if !status.success() {
-        let code = status.code().unwrap_or(-1);
-        return Err(anyhow!("Processo saiu com código {}", code));
+        return Err(anyhow!("Processo saiu com código {}: {}", status.code().unwrap_or(-1), diagnostics.into_iter().collect::<Vec<_>>().join("\n")));
     }
-
-    Ok(())
+    Ok(output_path)
 }
 
 fn parse_ffmpeg_progress(line: &str, total_duration: f64) -> Option<f64> {
@@ -803,30 +774,6 @@ fn get_duration_secs(path: &str) -> f64 {
         .unwrap_or(0.0)
 }
 
-fn find_latest_file(folder: &str) -> Result<String> {
-    let dir = std::fs::read_dir(folder)
-        .map_err(|e| anyhow!("Falha ao listar pasta de saída: {}", e))?;
-
-    let mut entries: Vec<(std::time::SystemTime, std::path::PathBuf)> = dir
-        .flatten()
-        .filter_map(|e| {
-            let meta = e.metadata().ok()?;
-            if meta.is_file() {
-                let modified = meta.modified().ok()?;
-                Some((modified, e.path()))
-            } else {
-                None
-            }
-        })
-        .collect();
-
-    entries.sort_by(|a, b| b.0.cmp(&a.0));
-
-    entries.first()
-        .map(|(_, p)| p.to_string_lossy().to_string())
-        .ok_or_else(|| anyhow!("Nenhum arquivo encontrado na pasta de saída"))
-}
-
 fn detect_best_video_encoder(container: &str) -> String {
     // Tentar NVENC primeiro
     let test = std::process::Command::new(find_ffmpeg())
@@ -863,6 +810,13 @@ async fn emit_log(job_id: &str, msg: &str, manager: Arc<Mutex<JobManager>>) {
 }
 
 fn map_error_to_user_facing(err: &str) -> UserFacingError {
+    if err.contains("POSTS_UNAVAILABLE") || err.contains("SECTION_UNAVAILABLE") {
+        return UserFacingError {
+            code: "UNSUPPORTED_FORMAT".into(), title: "Conteúdo do canal indisponível".into(),
+            message: "A seção escolhida não está disponível publicamente ou o YouTube mudou o formato das publicações. Resultados parciais foram preservados.".into(),
+            technical_details: Some(err.into()), retryable: false,
+        };
+    }
     if err.contains("LOGIN_REQUIRED") || err.contains("403") || err.contains("Sign in") {
         UserFacingError {
             code: "LOGIN_REQUIRED".to_string(),

@@ -1,14 +1,14 @@
 // commands.rs — Handlers Tauri expostos ao frontend via invoke()
 
 use std::sync::Arc;
-use tauri::{AppHandle, Manager, State};
+use tauri::State;
 use tokio::sync::Mutex;
 use serde_json::Value;
 
-use crate::jobs::{Job, JobInput, JobManager, run_job};
+use crate::jobs::{JobInput, JobManager, run_job};
 use crate::media;
-use crate::settings::{AppSettings, SettingsStore};
-use crate::hardware::{detect_hardware, HardwareInfo};
+use crate::settings::SettingsStore;
+use crate::hardware::detect_hardware;
 
 type MgrState = Arc<Mutex<JobManager>>;
 type SettState = Arc<Mutex<SettingsStore>>;
@@ -17,13 +17,9 @@ type SettState = Arc<Mutex<SettingsStore>>;
 
 #[tauri::command]
 pub async fn analyze_url(url: String) -> Result<Value, String> {
-    tokio::task::spawn_blocking(move || {
-        media::analyze_url(&url)
-            .map(|info| serde_json::to_value(info).unwrap())
-            .map_err(|e| map_error_code(&e.to_string()))
-    })
-    .await
-    .map_err(|e| e.to_string())?
+    media::analyze_url(&url).await
+        .map(|info| serde_json::to_value(info).unwrap())
+        .map_err(|e| map_error_code(&e.to_string()))
 }
 
 // ─── analyzeFile ─────────────────────────────────────────────────────────────
@@ -50,24 +46,17 @@ pub async fn enqueue_job(
     let input: JobInput = serde_json::from_value(input).map_err(|e| e.to_string())?;
     let origin = origin.unwrap_or_else(|| "desktop".to_string());
 
-    let (job, mgr_clone) = {
+    let (job, start_worker) = {
         let mut mgr = manager.lock().await;
+        // Claim the worker before spawning it: two enqueue calls cannot start two workers.
         let job = mgr.enqueue(input, &origin);
-        (job, manager.inner().clone())
+        let start = !mgr.queue_active;
+        if start { mgr.queue_active = true; }
+        (job, start)
     };
-
-    let job_id = job.id.clone();
-
-    // Lançar execução em background se não há job rodando
-    {
-        let mgr = mgr_clone.lock().await;
-        if !mgr.any_running() {
-            let mgr_for_run = mgr_clone.clone();
-            let id = job_id.clone();
-            tokio::spawn(async move {
-                process_queue(mgr_for_run).await;
-            });
-        }
+    if start_worker {
+        let mgr = manager.inner().clone();
+        tokio::spawn(async move { process_queue(mgr).await; });
     }
 
     Ok(serde_json::to_value(&job).unwrap())
@@ -77,9 +66,11 @@ pub async fn enqueue_job(
 async fn process_queue(manager: Arc<Mutex<JobManager>>) {
     loop {
         let next_id = {
-            let mgr = manager.lock().await;
-            if mgr.any_running() { break; }
-            mgr.next_pending()
+            let mut mgr = manager.lock().await;
+            match mgr.next_pending() {
+                Some(id) => Some(id),
+                None => { mgr.queue_active = false; None }
+            }
         };
 
         let Some(job_id) = next_id else { break };
@@ -100,16 +91,8 @@ pub async fn cancel_job(
 
     let mut mgr = manager.lock().await;
 
-    // Matar processo filho se estiver rodando
-    if let Some(pid) = mgr.running_pid {
-        #[cfg(target_os = "windows")]
-        {
-            let _ = std::process::Command::new("taskkill")
-                .args(["/F", "/PID", &pid.to_string()])
-                .output();
-        }
-        mgr.running_pid = None;
-    }
+    // The runner polls this job's status and kills its own child process. Cancelling
+    // a queued item must never kill the process belonging to another running item.
 
     if let Some(job) = mgr.get_job_mut(&job_id) {
         if job.status == JobStatus::Running || job.status == JobStatus::Pending {
@@ -137,23 +120,25 @@ pub async fn retry_job(
 
     let mgr_clone = manager.inner().clone();
 
-    {
+    let start_worker = {
         let mut mgr = manager.lock().await;
-        if let Some(job) = mgr.get_job_mut(&job_id) {
-            job.status = JobStatus::Pending;
-            job.progress = 0.0;
-            job.error = None;
-            job.logs.push(format!(
-                "[{}] Reiniciando tarefa...",
-                chrono::Local::now().format("%H:%M:%S")
-            ));
+        let job = mgr.get_job_mut(&job_id).ok_or("Job não encontrado")?;
+        if !matches!(job.status, JobStatus::Failed | JobStatus::Cancelled) {
+            return Err("Somente tarefas com falha ou canceladas podem ser repetidas".into());
         }
+        job.status = JobStatus::Pending;
+        job.progress = 0.0;
+        job.error = None;
+        job.started_at = None;
+        job.finished_at = None;
+        job.logs.push("Reiniciando tarefa...".into());
+        let start = !mgr.queue_active;
+        if start { mgr.queue_active = true; }
+        start
+    };
+    if start_worker {
+        tokio::spawn(async move { process_queue(mgr_clone).await; });
     }
-
-    // Disparar fila
-    tokio::spawn(async move {
-        process_queue(mgr_clone).await;
-    });
 
     let mgr = manager.lock().await;
     let job = mgr.get_job(&job_id).ok_or("Job não encontrado")?;
