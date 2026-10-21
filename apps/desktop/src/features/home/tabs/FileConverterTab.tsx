@@ -130,7 +130,7 @@ export function FileConverterTab() {
               : 'text-muted-foreground hover:text-foreground'
           }`}
         >
-          <ImageIcon className="w-4 h-4 text-emerald-400" />
+          <ImageIcon className="w-4 h-4 text-primary" />
           Converter Fotos / Imagens
         </button>
 
@@ -145,7 +145,7 @@ export function FileConverterTab() {
               : 'text-muted-foreground hover:text-foreground'
           }`}
         >
-          <Film className="w-4 h-4 text-sky-400" />
+          <Film className="w-4 h-4 text-primary" />
           Converter Vídeos
         </button>
 
@@ -160,7 +160,7 @@ export function FileConverterTab() {
               : 'text-muted-foreground hover:text-foreground'
           }`}
         >
-          <Music className="w-4 h-4 text-purple-400" />
+          <Music className="w-4 h-4 text-primary" />
           Converter Músicas / Áudios
         </button>
       </div>

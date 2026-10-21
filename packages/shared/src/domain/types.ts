@@ -88,7 +88,7 @@ export interface MediaInfo {
   estimatedSizeBytes?: number;
   availableQualities?: Array<'best' | '1080p' | '720p' | '480p'>;
   requiresLogin?: boolean; // conteúdo que exige sessão do usuário
-  suggestions: Array<'download' | 'convert' | 'trim' | 'compress' | 'extractAudio'>;
+  suggestions: Array<'download' | 'convert' | 'compress' | 'extractAudio'>;
   canStreamCopyTo?: string[]; // containers possíveis sem recodificar
 
   // Suporte a Canais e Playlists

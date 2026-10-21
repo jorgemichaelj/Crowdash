@@ -1,7 +1,7 @@
 export const ptBR = {
   app: {
-    name: 'Crowdash',
-    tagline: 'Rápido e simples para baixar, converter, cortar e comprimir mídia',
+    name: 'CrowDash',
+    tagline: 'Rápido e simples para baixar, converter e comprimir mídia',
   },
   nav: {
     home: 'Início',
@@ -25,7 +25,6 @@ export const ptBR = {
       downloadVideo: 'Baixar Vídeo',
       downloadAudio: 'Baixar Apenas Áudio',
       convert: 'Converter',
-      trim: 'Cortar',
       compress: 'Comprimir',
       extractAudio: 'Extrair Áudio',
     },
@@ -46,15 +45,6 @@ export const ptBR = {
     embed: 'Incorporar no vídeo',
     language: 'Idioma da legenda',
     format: 'Formato',
-  },
-  trim: {
-    title: 'Cortar Mídia',
-    start: 'Início',
-    end: 'Fim',
-    duration: 'Duração selecionada',
-    preciseTrim: 'Corte preciso (mais lento)',
-    preciseNotice: 'O corte rápido pode ter pequenas imprecisões no início/fim.',
-    export: 'Exportar Corte',
   },
   compress: {
     title: 'Comprimir Arquivo',

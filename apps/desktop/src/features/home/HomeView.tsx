@@ -1,16 +1,15 @@
 import React, { useState } from 'react';
 import { WebDownloaderTab } from './tabs/WebDownloaderTab';
 import { FileConverterTab } from './tabs/FileConverterTab';
-import { MediaTrimTab } from './tabs/MediaTrimTab';
 import { MediaCompressTab } from './tabs/MediaCompressTab';
-import { Download, RefreshCw, Scissors, Minimize2 } from 'lucide-react';
+import { Download, RefreshCw, Minimize2 } from 'lucide-react';
 
-export type HomeUtilityTab = 'download' | 'convert' | 'trim' | 'compress';
+export type HomeUtilityTab = 'download' | 'convert' | 'compress';
 
 export function HomeView() {
   const [activeTab, setActiveTab] = useState<HomeUtilityTab>('download');
 
-  const tabs: { id: HomeUtilityTab; label: string; icon: any; desc: string; badge?: string }[] = [
+  const tabs: { id: HomeUtilityTab; label: string; icon: any; desc: string }[] = [
     {
       id: 'download',
       label: 'Baixar da Web',
@@ -22,31 +21,40 @@ export function HomeView() {
       label: 'Converter Arquivos',
       icon: RefreshCw,
       desc: 'Fotos (WebP ➔ PNG), Vídeos e Músicas',
-      badge: 'Popular',
-    },
-    {
-      id: 'trim',
-      label: 'Cortar Mídia',
-      icon: Scissors,
-      desc: 'Editar início e fim de vídeos',
     },
     {
       id: 'compress',
       label: 'Comprimir',
       icon: Minimize2,
-      desc: 'Reduzir para 25MB Discord / Zap',
+      desc: 'Reduzir para Discord e WhatsApp',
     },
   ];
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
+      <section className="flex items-center justify-between gap-6 py-4 sm:py-7">
+        <div className="space-y-3">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-primary">Seu próximo download começa aqui</p>
+          <h1 className="text-3xl sm:text-4xl font-semibold tracking-tight text-foreground leading-tight">
+            Sua mídia.<br /><span className="text-primary">Do seu jeito.</span>
+          </h1>
+          <p className="text-sm text-muted-foreground max-w-md leading-relaxed">
+            Baixe o que importa. Converta quando precisar. Comprima para compartilhar.
+          </p>
+        </div>
+        <div className="crowdash-brand-mark hidden sm:flex w-32 h-36 shrink-0 items-center justify-center rounded-3xl rotate-3 shadow-lg">
+          <img src="/crowdash-logo.png" alt="Corvo de cartola, símbolo do CrowDash" className="w-28 h-28 object-contain -rotate-3" />
+        </div>
+      </section>
       {/* Barra de Seleção das Utilidades no Topo */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5 p-1.5 bg-muted/40 rounded-2xl border border-border">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 p-1.5 bg-muted/40 rounded-2xl border border-border">
         {tabs.map((tab) => {
           const Icon = tab.icon;
           const isActive = activeTab === tab.id;
           return (
             <button
+              type="button"
+              aria-pressed={isActive}
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
               className={`p-3 rounded-xl text-left transition-all cursor-pointer relative flex flex-col justify-between ${
@@ -63,11 +71,6 @@ export function HomeView() {
                 >
                   <Icon className="w-4 h-4" />
                 </div>
-                {tab.badge && (
-                  <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-400 border border-emerald-500/20">
-                    {tab.badge}
-                  </span>
-                )}
               </div>
 
               <div className="mt-2">
@@ -87,7 +90,6 @@ export function HomeView() {
       <div className="animate-in fade-in duration-150">
         {activeTab === 'download' && <WebDownloaderTab />}
         {activeTab === 'convert' && <FileConverterTab />}
-        {activeTab === 'trim' && <MediaTrimTab />}
         {activeTab === 'compress' && <MediaCompressTab />}
       </div>
     </div>

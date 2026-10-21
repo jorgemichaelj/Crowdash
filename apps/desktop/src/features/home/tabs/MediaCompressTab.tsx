@@ -30,7 +30,7 @@ export function MediaCompressTab() {
       <Card className="p-6 rounded-2xl border-border bg-card shadow-sm space-y-4">
         <div className="space-y-1">
           <h3 className="text-base font-semibold text-foreground flex items-center gap-2">
-            <Minimize2 className="w-5 h-5 text-emerald-400" />
+            <Minimize2 className="w-5 h-5 text-primary" />
             Comprimir Arquivo para Tamanho Específico
           </h3>
           <p className="text-xs text-muted-foreground">
@@ -40,7 +40,7 @@ export function MediaCompressTab() {
 
         {!selectedFile ? (
           <div className="p-8 border-2 border-dashed border-border rounded-xl text-center space-y-3 bg-muted/20">
-            <div className="w-12 h-12 rounded-xl bg-muted flex items-center justify-center text-emerald-400 mx-auto">
+            <div className="w-12 h-12 rounded-xl bg-muted flex items-center justify-center text-primary mx-auto">
               <UploadCloud className="w-6 h-6" />
             </div>
             <div>
@@ -59,7 +59,7 @@ export function MediaCompressTab() {
                 htmlFor="compress-file-input"
                 className="inline-flex items-center gap-2 px-4 py-2 bg-muted hover:bg-muted/80 text-foreground text-xs font-medium rounded-xl border border-border cursor-pointer transition-colors shadow-xs"
               >
-                <FolderOpen className="w-4 h-4 text-emerald-400" />
+                <FolderOpen className="w-4 h-4 text-primary" />
                 Escolher Vídeo para Comprimir
               </label>
             </div>

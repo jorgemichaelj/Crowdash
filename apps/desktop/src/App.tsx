@@ -25,7 +25,7 @@ export function App() {
     <div className="min-h-screen flex flex-col bg-background text-foreground">
       <Header />
 
-      <main className="flex-1 p-6">
+      <main className="flex-1 p-4 sm:p-6">
         {currentTab === 'home' && <HomeView />}
         {currentTab === 'queue' && <QueueView />}
         {currentTab === 'settings' && <SettingsView />}

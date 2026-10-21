@@ -437,13 +437,13 @@ fn parse_ffprobe_output(json: &Value, path: &str, ext: &str) -> Result<MediaInfo
         };
         (
             "video",
-            vec!["convert".to_string(), "trim".to_string(), "compress".to_string(), "extractAudio".to_string()],
+            vec!["convert".to_string(), "compress".to_string(), "extractAudio".to_string()],
             copy,
         )
     } else {
         (
             "audio",
-            vec!["convert".to_string(), "trim".to_string()],
+            vec!["convert".to_string()],
             vec!["mp3".to_string(), "m4a".to_string(), "wav".to_string()],
         )
     };

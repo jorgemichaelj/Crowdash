@@ -185,7 +185,7 @@ export class MockBackendClient implements BackendClient {
         category: 'audio',
         audio: { codec: ext, channels: 2 },
         estimatedSizeBytes: 8 * 1024 * 1024,
-        suggestions: ['convert', 'trim'],
+        suggestions: ['convert'],
         canStreamCopyTo: ['mp3', 'm4a', 'wav'],
       };
     }
@@ -208,7 +208,7 @@ export class MockBackendClient implements BackendClient {
         channels: 2,
       },
       estimatedSizeBytes: 35 * 1024 * 1024,
-      suggestions: ['convert', 'trim', 'compress', 'extractAudio'],
+      suggestions: ['convert', 'compress', 'extractAudio'],
       canStreamCopyTo: ext === 'mkv' ? ['mkv', 'mp4'] : ['mp4'],
     };
   }

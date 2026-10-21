@@ -1,8 +1,8 @@
 # Crowdash
 
-Crowdash é uma ferramenta rápida e simples para baixar, converter, cortar e comprimir mídia.
+Crowdash é uma ferramenta rápida e simples para baixar, converter e comprimir mídia.
 
-> **Status atual:** Fase de Frontend Concluída com Backend Mockado. Todo o design system, telas, navegação, cards, fila de tarefas, editor de corte, diálogo de compressão, configurações e extensão de navegador estão prontos e integrados através de contratos tipados em TypeScript strict mode.
+> **Status atual:** Fase de Frontend Concluída com Backend Mockado. Todo o design system, telas, navegação, cards, fila de tarefas, diálogo de compressão, configurações e extensão de navegador estão prontos e integrados através de contratos tipados em TypeScript strict mode.
 
 ---
 

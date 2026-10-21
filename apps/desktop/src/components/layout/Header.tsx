@@ -2,7 +2,7 @@ import React from 'react';
 import { useAppStore } from '../../stores/appStore';
 import { IconButton, Badge } from '../../components/ui';
 import { useI18n } from '../../i18n';
-import { Flame, ListOrdered, Settings, Terminal } from 'lucide-react';
+import { ListOrdered, Settings, Terminal } from 'lucide-react';
 
 export function Header() {
   const { currentTab, setCurrentTab, jobs, setDevPanelOpen } = useAppStore();
@@ -11,25 +11,28 @@ export function Header() {
   const runningCount = jobs.filter((j) => j.status === 'running' || j.status === 'pending').length;
 
   return (
-    <header className="h-14 border-b border-border bg-card/80 backdrop-blur-md sticky top-0 z-40 px-6 flex items-center justify-between">
+    <header className="min-h-20 border-b border-border bg-card/80 backdrop-blur-md sticky top-0 z-40 px-4 py-3 sm:px-6 flex flex-wrap items-center justify-between gap-3">
       {/* Brand */}
-      <div
-        className="flex items-center gap-2 cursor-pointer select-none"
+      <button
+        type="button"
+        aria-label="CrowDash — início"
+        className="flex items-center gap-3 cursor-pointer select-none text-left rounded-lg"
         onClick={() => setCurrentTab('home')}
       >
-        <div className="w-8 h-8 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center text-primary">
-          <Flame className="w-4 h-4 fill-primary" />
-        </div>
-        <div>
-          <h1 className="text-sm font-bold text-foreground leading-none">{t.app.name}</h1>
-          <span className="text-[10px] text-muted-foreground">{t.app.tagline}</span>
-        </div>
-      </div>
+        <span className="crowdash-brand-mark w-12 h-12 rounded-xl flex items-center justify-center shrink-0">
+          <img src="/crowdash-logo.png" alt="" className="w-10 h-10 object-contain" />
+        </span>
+        <span>
+          <span className="crowdash-wordmark block text-2xl font-bold text-foreground leading-none">Crow<span className="text-primary">Dash</span></span>
+          <span className="block text-[10px] text-muted-foreground mt-1">{t.app.tagline}</span>
+        </span>
+      </button>
 
       {/* Navegação */}
-      <nav className="flex items-center gap-2">
+      <nav aria-label="Navegação principal" className="flex flex-wrap items-center gap-1 sm:gap-2">
         <button
           onClick={() => setCurrentTab('home')}
+          aria-current={currentTab === 'home' ? 'page' : undefined}
           className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors cursor-pointer ${
             currentTab === 'home'
               ? 'bg-primary text-primary-foreground'
@@ -41,6 +44,7 @@ export function Header() {
 
         <button
           onClick={() => setCurrentTab('queue')}
+          aria-current={currentTab === 'queue' ? 'page' : undefined}
           className={`relative px-3 py-1.5 rounded-md text-xs font-medium transition-colors flex items-center gap-1.5 cursor-pointer ${
             currentTab === 'queue'
               ? 'bg-primary text-primary-foreground'
@@ -58,6 +62,7 @@ export function Header() {
 
         <button
           onClick={() => setCurrentTab('settings')}
+          aria-current={currentTab === 'settings' ? 'page' : undefined}
           className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors flex items-center gap-1.5 cursor-pointer ${
             currentTab === 'settings'
               ? 'bg-primary text-primary-foreground'

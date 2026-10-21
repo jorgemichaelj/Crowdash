@@ -3,49 +3,51 @@
 @tailwind utilities;
 
 :root {
-  --color-bg: #f8fafc;
-  --color-fg: #0f172a;
-  --color-card: #ffffff;
-  --color-card-fg: #0f172a;
-  --color-muted: #f1f5f9;
-  --color-muted-fg: #64748b;
-  --color-border: #e2e8f0;
-  --color-primary: #0284c7;
-  --color-primary-hover: #0369a1;
-  --color-primary-fg: #ffffff;
-  --color-danger: #ef4444;
-  --color-danger-hover: #dc2626;
-  --color-danger-fg: #ffffff;
-  --color-success: #10b981;
-  --color-warning: #f59e0b;
+  color-scheme: light;
+  --color-bg: 246 242 233;
+  --color-fg: 38 36 31;
+  --color-card: 255 252 245;
+  --color-card-fg: 38 36 31;
+  --color-muted: 238 232 220;
+  --color-muted-fg: 117 111 98;
+  --color-border: 222 213 196;
+  --color-primary: 128 97 39;
+  --color-primary-hover: 101 75 28;
+  --color-primary-fg: 255 252 245;
+  --color-danger: 239 68 68;
+  --color-danger-hover: 220 38 38;
+  --color-danger-fg: 255 252 245;
+  --color-success: 16 185 129;
+  --color-warning: 245 158 11;
   --radius-lg: 0.75rem;
   --radius-md: 0.5rem;
   --radius-sm: 0.25rem;
 }
 
 .dark {
-  --color-bg: #090d16;
-  --color-fg: #f8fafc;
-  --color-card: #111827;
-  --color-card-fg: #f8fafc;
-  --color-muted: #1e293b;
-  --color-muted-fg: #94a3b8;
-  --color-border: #1e293b;
-  --color-primary: #38bdf8;
-  --color-primary-hover: #0ea5e9;
-  --color-primary-fg: #090d16;
-  --color-danger: #f87171;
-  --color-danger-hover: #ef4444;
-  --color-danger-fg: #ffffff;
-  --color-success: #34d399;
-  --color-warning: #fbbf24;
+  color-scheme: dark;
+  --color-bg: 25 25 23;
+  --color-fg: 246 242 233;
+  --color-card: 34 34 31;
+  --color-card-fg: 246 242 233;
+  --color-muted: 52 52 46;
+  --color-muted-fg: 177 172 158;
+  --color-border: 52 52 46;
+  --color-primary: 203 181 130;
+  --color-primary-hover: 221 201 155;
+  --color-primary-fg: 25 25 23;
+  --color-danger: 248 113 113;
+  --color-danger-hover: 239 68 68;
+  --color-danger-fg: 255 252 245;
+  --color-success: 52 211 153;
+  --color-warning: 251 191 36;
 }
 
 body {
   margin: 0;
   padding: 0;
-  background-color: var(--color-bg);
-  color: var(--color-fg);
+  background-color: rgb(var(--color-bg));
+  color: rgb(var(--color-fg));
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   user-select: none;
   overflow-x: hidden;
@@ -58,4 +60,30 @@ body {
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
   }
+}
+
+/* CrowDash identity: charcoal, ivory and champagne gold. */
+body {
+  background-image: radial-gradient(ellipse at 50% 0%, rgb(var(--color-primary) / 0.07), transparent 65%);
+  background-attachment: fixed;
+}
+
+::selection {
+  background: rgb(var(--color-primary));
+  color: rgb(var(--color-primary-fg));
+}
+
+:focus-visible {
+  outline: 2px solid rgb(var(--color-primary));
+  outline-offset: 3px;
+}
+
+.crowdash-wordmark {
+  font-family: Georgia, "Times New Roman", serif;
+  letter-spacing: -0.04em;
+}
+
+.crowdash-brand-mark {
+  background: #1e1e1c;
+  border: 1px solid #cbb58245;
 }

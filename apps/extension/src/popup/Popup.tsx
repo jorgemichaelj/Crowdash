@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { MockHostClient } from '../services/HostClient';
 import type { HostStatus, HandoffRequest } from '@crowdash/shared';
 import {
-  Flame,
   Download,
   ExternalLink,
   AlertCircle,
@@ -92,16 +91,16 @@ export function Popup() {
   };
 
   return (
-    <div className="w-[380px] p-4 bg-slate-900 text-slate-100 flex flex-col gap-4">
+    <div className="w-[380px] p-4 bg-stone-900 text-stone-100 flex flex-col gap-4">
       {/* Header */}
-      <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+      <div className="flex items-center justify-between border-b border-stone-800 pb-3">
         <div className="flex items-center gap-2">
-          <div className="w-7 h-7 rounded bg-sky-500/20 text-sky-400 flex items-center justify-center">
-            <Flame className="w-4 h-4 fill-sky-400" />
+          <div className="w-10 h-10 rounded-lg bg-[#1e1e1c] border border-brand-500/30 flex items-center justify-center">
+            <img src="/crowdash-logo.png" alt="" className="w-9 h-9 object-contain" />
           </div>
           <div>
-            <h1 className="text-xs font-bold leading-none">Crowdash</h1>
-            <span className="text-[10px] text-slate-400">Captura de Mídia</span>
+            <h1 className="font-serif text-xl font-bold leading-none tracking-tight">Crow<span className="text-brand-400">Dash</span></h1>
+            <span className="text-[10px] text-stone-400">Captura de Mídia</span>
           </div>
         </div>
 
@@ -112,7 +111,7 @@ export function Popup() {
               hostStatus === 'connected' ? 'bg-emerald-400' : 'bg-rose-400'
             }`}
           />
-          <span className="text-slate-400">
+          <span className="text-stone-400">
             {hostStatus === 'connected' ? 'App Conectado' : 'App Desconectado'}
           </span>
         </div>
@@ -128,7 +127,7 @@ export function Popup() {
 
       {/* Lista de Mídias Detectadas */}
       <div className="space-y-3">
-        <div className="flex justify-between items-center text-xs text-slate-400">
+        <div className="flex justify-between items-center text-xs text-stone-400">
           <span>Mídias Detectadas ({medias.length})</span>
           <button
             onClick={() => {
@@ -144,24 +143,24 @@ export function Popup() {
                 },
               ]);
             }}
-            className="text-[10px] text-sky-400 hover:underline cursor-pointer"
+            className="text-[10px] text-brand-400 hover:underline cursor-pointer"
           >
             + Simular captura
           </button>
         </div>
 
         {medias.length === 0 ? (
-          <div className="p-6 text-center text-xs text-slate-500">
+          <div className="p-6 text-center text-xs text-stone-500">
             Nenhuma mídia detectada. Reproduza um vídeo para detectá-lo.
           </div>
         ) : (
           medias.map((item) => (
             <div
               key={item.id}
-              className="p-3 bg-slate-800/80 rounded-lg border border-slate-700/60 flex flex-col gap-2.5"
+              className="p-3 bg-stone-800/80 rounded-lg border border-stone-700/60 flex flex-col gap-2.5"
             >
               <div className="flex items-start gap-2.5">
-                <div className="p-2 bg-slate-700 rounded text-slate-300">
+                <div className="p-2 bg-stone-700 rounded text-stone-300">
                   {item.kind === 'direct' ? (
                     <Film className="w-4 h-4" />
                   ) : (
@@ -169,11 +168,11 @@ export function Popup() {
                   )}
                 </div>
                 <div className="min-w-0 flex-1">
-                  <h4 className="text-xs font-medium text-slate-200 truncate">
+                  <h4 className="text-xs font-medium text-stone-200 truncate">
                     {item.title}
                   </h4>
-                  <div className="flex items-center gap-2 mt-1 text-[11px] text-slate-400">
-                    <span className="uppercase font-semibold text-sky-400">
+                  <div className="flex items-center gap-2 mt-1 text-[11px] text-stone-400">
+                    <span className="uppercase font-semibold text-brand-400">
                       {item.kind}
                     </span>
                     {item.resolution && <span>• {item.resolution}</span>}
@@ -187,7 +186,7 @@ export function Popup() {
                 {item.kind === 'direct' && (
                   <button
                     onClick={() => handleDownloadDirect(item)}
-                    className="flex-1 py-1.5 px-2 bg-slate-700 hover:bg-slate-600 rounded text-xs font-medium text-slate-200 flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                    className="flex-1 py-1.5 px-2 bg-stone-700 hover:bg-stone-600 rounded text-xs font-medium text-stone-200 flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
                   >
                     <Download className="w-3.5 h-3.5" />
                     Baixar no navegador
@@ -197,7 +196,7 @@ export function Popup() {
                 <button
                   onClick={() => handleSendToDesktop(item)}
                   disabled={sendingId === item.id}
-                  className="flex-1 py-1.5 px-2 bg-sky-600 hover:bg-sky-500 disabled:opacity-50 rounded text-xs font-medium text-white flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                  className="flex-1 py-1.5 px-2 bg-brand-600 hover:bg-brand-500 disabled:opacity-50 rounded text-xs font-medium text-stone-950 flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
                 >
                   {sendingId === item.id ? (
                     <>
@@ -207,12 +206,12 @@ export function Popup() {
                   ) : sentSuccessId === item.id ? (
                     <>
                       <CheckCircle2 className="w-3.5 h-3.5 text-emerald-300" />
-                      Enviado ao Crowdash
+                      Enviado ao CrowDash
                     </>
                   ) : (
                     <>
                       <ExternalLink className="w-3.5 h-3.5" />
-                      Abrir no Crowdash
+                      Abrir no CrowDash
                     </>
                   )}
                 </button>
@@ -223,13 +222,13 @@ export function Popup() {
       </div>
 
       {/* Rodapé */}
-      <div className="border-t border-slate-800 pt-2 flex justify-between items-center text-[11px] text-slate-500">
+      <div className="border-t border-stone-800 pt-2 flex justify-between items-center text-[11px] text-stone-500">
         <span>v0.1.0 (Mock)</span>
         <button
           onClick={() =>
             setHostStatus((prev) => (prev === 'connected' ? 'disconnected' : 'connected'))
           }
-          className="hover:text-slate-300 cursor-pointer"
+          className="hover:text-stone-300 cursor-pointer"
         >
           Alternar Status Host
         </button>
