@@ -32,7 +32,7 @@ export function HomeView() {
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
-      <section className="flex items-center justify-between gap-6 py-4 sm:py-7">
+      <section className="py-4 sm:py-7">
         <div className="space-y-3">
           <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-primary">Seu próximo download começa aqui</p>
           <h1 className="text-3xl sm:text-4xl font-semibold tracking-tight text-foreground leading-tight">
@@ -41,9 +41,6 @@ export function HomeView() {
           <p className="text-sm text-muted-foreground max-w-md leading-relaxed">
             Baixe o que importa. Converta quando precisar. Comprima para compartilhar.
           </p>
-        </div>
-        <div className="crowdash-brand-mark hidden sm:flex w-32 h-36 shrink-0 items-center justify-center rounded-3xl rotate-3 shadow-lg">
-          <img src="/crowdash-logo.png" alt="Corvo de cartola, símbolo do CrowDash" className="w-28 h-28 object-contain -rotate-3" />
         </div>
       </section>
       {/* Barra de Seleção das Utilidades no Topo */}
