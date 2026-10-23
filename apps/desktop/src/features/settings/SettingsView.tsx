@@ -5,6 +5,7 @@ import { useToast } from '../../components/ui/toast';
 import { useAppStore } from '../../stores/appStore';
 import { useI18n } from '../../i18n';
 import type { AppSettings, HardwareInfo } from '@crowdash/shared';
+import { ExtensionSettings } from './ExtensionSettings';
 import { Folder, Cpu, Globe, Sliders, Info, Trash2, CheckCircle2 } from 'lucide-react';
 
 export function SettingsView() {
@@ -166,6 +167,8 @@ export function SettingsView() {
         )}
 
         {activeSection === 'browser' && (
+          <div className="space-y-4">
+            <ExtensionSettings />
           <Card className="space-y-4">
             <h3 className="text-base font-semibold text-foreground border-b border-border pb-2">
               {t.settings.sections.browser}
@@ -211,6 +214,7 @@ export function SettingsView() {
               )}
             </div>
           </Card>
+          </div>
         )}
 
         {activeSection === 'advanced' && (

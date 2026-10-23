@@ -5,11 +5,12 @@
   "description": "Crowdash - Uma ferramenta rápida e simples para baixar, converter e comprimir mídia",
   "scripts": {
     "build": "pnpm -r run build",
-    "test": "pnpm -r run test",
+    "test": "node --test scripts/dev-native.test.mjs && pnpm -r run test",
     "lint": "pnpm -r run lint",
     "dev:desktop": "pnpm --filter @crowdash/desktop dev",
     "dev:extension": "pnpm --filter @crowdash/extension dev",
     "dev:native": "pnpm --filter @crowdash/desktop dev:native",
+    "check:rust": "node scripts/dev-native.mjs --check",
     "build:native": "pnpm --filter @crowdash/desktop build:native"
   },
   "devDependencies": {

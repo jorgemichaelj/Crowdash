@@ -1,13 +1,16 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { WebDownloaderTab } from './tabs/WebDownloaderTab';
 import { FileConverterTab } from './tabs/FileConverterTab';
 import { MediaCompressTab } from './tabs/MediaCompressTab';
+import { useAppStore } from '../../stores/appStore';
 import { Download, RefreshCw, Minimize2 } from 'lucide-react';
 
 export type HomeUtilityTab = 'download' | 'convert' | 'compress';
 
 export function HomeView() {
   const [activeTab, setActiveTab] = useState<HomeUtilityTab>('download');
+  const pendingUrl = useAppStore(s => s.pendingDownloadUrl);
+  useEffect(() => { if (pendingUrl) setActiveTab('download'); }, [pendingUrl]);
 
   const tabs: { id: HomeUtilityTab; label: string; icon: any; desc: string }[] = [
     {

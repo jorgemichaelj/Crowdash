@@ -1,0 +1,52 @@
+name: Windows — instalador de teste
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  installer:
+    runs-on: windows-2022
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 12.14.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - name: Configurar Rust estável
+        shell: pwsh
+        run: |
+          rustup toolchain install stable --profile minimal
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          rustup default stable
+      - name: Instalar dependências
+        run: pnpm install --frozen-lockfile
+      - name: Verificar TypeScript
+        run: pnpm lint
+      - name: Testar interface, extensão e inicialização
+        run: pnpm test
+      - name: Testar downloads
+        run: cargo test --manifest-path crates/download-core/Cargo.toml --locked
+      - name: Testar conexão nativa
+        run: cargo test --manifest-path crates/extension-bridge/Cargo.toml --locked
+      - name: Compilar instalador Windows e incluir a extensão
+        run: pnpm --filter @crowdash/desktop build:native --bundles nsis
+      - name: Preparar arquivos para teste
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force artifacts/windows/extension | Out-Null
+          Copy-Item apps/desktop/src-tauri/target/release/bundle/nsis/*.exe artifacts/windows/
+          Copy-Item apps/extension/dist/* artifacts/windows/extension/ -Recurse
+          Copy-Item docs/WINDOWS.md artifacts/windows/LEIA-ME.md
+      - uses: actions/upload-artifact@v4
+        with:
+          name: crowdash-windows-test
+          path: artifacts/windows/
+          if-no-files-found: error
+          retention-days: 14

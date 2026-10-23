@@ -22,3 +22,5 @@ Thumbs.db
 
 # Headless downloader core
 /crates/download-core/target/
+
+/crates/extension-bridge/target/
