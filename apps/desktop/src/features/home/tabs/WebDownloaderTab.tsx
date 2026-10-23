@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Card, Input, Button } from '../../../components/ui';
 import { Skeleton } from '../../../components/ui/feedback';
 import { SubtitleSettings } from '../../subtitles/SubtitleSettings';
@@ -14,7 +14,7 @@ import { Link, Download, ClipboardPaste, ListVideo } from 'lucide-react';
 export function WebDownloaderTab() {
   const backend = useBackend();
   const { showToast } = useToast();
-  const { setCurrentTab } = useAppStore();
+  const { setCurrentTab, pendingDownloadUrl, setPendingDownloadUrl } = useAppStore();
   const [inputUrl, setInputUrl] = useState('');
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [downloading, setDownloading] = useState(false);
@@ -47,6 +47,13 @@ export function WebDownloaderTab() {
       if (requestId === analysisId.current) setIsAnalyzing(false);
     }
   };
+
+  useEffect(() => {
+    if (!pendingDownloadUrl) return;
+    editUrl(pendingDownloadUrl);
+    void handleAnalyze(pendingDownloadUrl);
+    setPendingDownloadUrl(null);
+  }, [pendingDownloadUrl]);
 
   const paste = async () => {
     try {

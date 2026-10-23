@@ -9,7 +9,7 @@
     "preview": "vite preview",
     "test": "vitest run",
     "lint": "tsc --noEmit",
-    "dev:native": "tauri dev",
+    "dev:native": "node ../../scripts/dev-native.mjs",
     "build:native": "tauri build"
   },
   "dependencies": {

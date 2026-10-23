@@ -97,7 +97,7 @@ export const ptBR = {
     sections: {
       general: 'Geral',
       hardware: 'Aceleração de hardware',
-      browser: 'Navegador e sessão',
+      browser: 'Navegador e extensão',
       advanced: 'Avançado',
       about: 'Sobre',
     },
@@ -120,7 +120,7 @@ export const ptBR = {
       notDetected: 'Nenhuma placa gráfica compatível encontrada; processamento via processador (CPU).',
     },
     browser: {
-      description: 'Use a sua própria conta logada no navegador para baixar conteúdo ao qual você já tem acesso legítimo.',
+      description: 'A extensão detecta mídia nas páginas abertas e envia links ao aplicativo. Cookies de sessão não são transferidos nesta versão.',
       grantedDomains: 'Domínios autorizados',
       noDomains: 'Nenhum domínio autorizado no momento.',
       revoke: 'Revogar acesso',

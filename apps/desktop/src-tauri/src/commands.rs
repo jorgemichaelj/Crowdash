@@ -44,22 +44,20 @@ pub async fn enqueue_job(
     manager: State<'_, MgrState>,
 ) -> Result<Value, String> {
     let input: JobInput = serde_json::from_value(input).map_err(|e| e.to_string())?;
-    let origin = origin.unwrap_or_else(|| "desktop".to_string());
+    let job = enqueue_input(input, origin.as_deref().unwrap_or("desktop"), manager.inner().clone()).await;
+    Ok(serde_json::to_value(job).unwrap())
+}
 
+pub(crate) async fn enqueue_input(input: JobInput, origin: &str, manager: Arc<Mutex<JobManager>>) -> crate::jobs::Job {
     let (job, start_worker) = {
         let mut mgr = manager.lock().await;
-        // Claim the worker before spawning it: two enqueue calls cannot start two workers.
-        let job = mgr.enqueue(input, &origin);
+        let job = mgr.enqueue(input, origin);
         let start = !mgr.queue_active;
         if start { mgr.queue_active = true; }
         (job, start)
     };
-    if start_worker {
-        let mgr = manager.inner().clone();
-        tokio::spawn(async move { process_queue(mgr).await; });
-    }
-
-    Ok(serde_json::to_value(&job).unwrap())
+    if start_worker { tokio::spawn(async move { process_queue(manager).await; }); }
+    job
 }
 
 /// Processa a fila serial: pega o próximo pending, executa, repete

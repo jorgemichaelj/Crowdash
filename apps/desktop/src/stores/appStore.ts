@@ -5,6 +5,9 @@ interface AppStoreState {
   currentTab: 'home' | 'queue' | 'settings' | 'dev';
   setCurrentTab: (tab: 'home' | 'queue' | 'settings' | 'dev') => void;
 
+  pendingDownloadUrl: string | null;
+  setPendingDownloadUrl: (url: string | null) => void;
+
   theme: 'system' | 'dark' | 'light';
   setTheme: (theme: 'system' | 'dark' | 'light') => void;
 
@@ -25,6 +28,9 @@ interface AppStoreState {
 export const useAppStore = create<AppStoreState>((set) => ({
   currentTab: 'home',
   setCurrentTab: (tab) => set({ currentTab: tab }),
+
+  pendingDownloadUrl: null,
+  setPendingDownloadUrl: (pendingDownloadUrl) => set({ pendingDownloadUrl }),
 
   theme: 'dark',
   setTheme: (theme) => {

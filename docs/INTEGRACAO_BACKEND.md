@@ -1,5 +1,6 @@
 # Guia de Integração com o Backend Real — Crowdash
 
+> Referência dos contratos iniciais. O backend Tauri e a conexão Native Messaging já estão implementados; consulte [downloads do YouTube](DOWNLOADS_YOUTUBE.md) e [extensão](EXTENSAO.md) para o funcionamento atual.
 Este documento especifica todos os contratos, interfaces e pontos de integração que o futuro backend (Rust/Tauri, FFmpeg, yt-dlp e Native Messaging Host) precisará implementar para substituir a camada de simulação sem alterar nenhuma linha da interface visual.
 
 ---

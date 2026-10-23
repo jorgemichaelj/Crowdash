@@ -75,15 +75,17 @@ export class TauriBackendClient implements BackendClient {
 
   subscribe(handler: (event: JobEvent) => void): () => void {
     let unlisten: UnlistenFn | null = null;
+    let disposed = false;
 
     listen<JobEvent>('job_event', (event) => {
-      handler(event.payload);
+      if (!disposed) handler(event.payload);
     }).then((fn) => {
-      unlisten = fn;
-      this.unlistenFns.push(fn);
+      if (disposed) fn();
+      else { unlisten = fn; this.unlistenFns.push(fn); }
     });
 
     return () => {
+      disposed = true;
       if (unlisten) {
         unlisten();
         this.unlistenFns = this.unlistenFns.filter((fn) => fn !== unlisten);

@@ -6,6 +6,7 @@ mod jobs;
 mod media;
 mod settings;
 mod hardware;
+mod extension;
 
 use tauri::Manager;
 use jobs::JobManager;
@@ -20,7 +21,17 @@ pub fn run() {
         )
         .init();
 
+    desktop_builder()
+        .run(tauri::generate_context!())
+        .expect("Erro ao iniciar o Crowdash");
+}
+
+/// Shared production builder, also usable by the headless backend integration runner.
+pub fn desktop_builder() -> tauri::Builder<tauri::Wry> {
     tauri::Builder::default()
+        .plugin(tauri_plugin_single_instance::init(|app, _, _| {
+            if let Some(window) = app.get_webview_window("main") { let _ = window.show(); let _ = window.set_focus(); }
+        }))
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
@@ -31,9 +42,14 @@ pub fn run() {
             let job_manager = JobManager::new(app.handle().clone(), settings.settings.clone());
             app.manage(std::sync::Arc::new(tokio::sync::Mutex::new(settings)));
             app.manage(std::sync::Arc::new(tokio::sync::Mutex::new(job_manager)));
+            extension::start(app.handle())?;
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
+            extension::extension_setup,
+            extension::connect_extension,
+            extension::open_extension_folder,
+            extension::take_extension_action,
             commands::analyze_url,
             commands::analyze_file,
             commands::enqueue_job,
@@ -47,6 +63,4 @@ pub fn run() {
             commands::check_for_update,
             commands::reveal_in_folder,
         ])
-        .run(tauri::generate_context!())
-        .expect("Erro ao iniciar o Crowdash");
 }

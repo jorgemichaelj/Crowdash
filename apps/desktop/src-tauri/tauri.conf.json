@@ -6,8 +6,8 @@
   "build": {
     "frontendDist": "../dist",
     "devUrl": "http://localhost:5173",
-    "beforeDevCommand": "pnpm dev",
-    "beforeBuildCommand": "pnpm build"
+    "beforeDevCommand": "pnpm --filter @crowdash/extension build && pnpm dev",
+    "beforeBuildCommand": "pnpm --filter @crowdash/extension build && pnpm build"
   },
   "app": {
     "withGlobalTauri": true,
@@ -30,8 +30,15 @@
   "bundle": {
     "active": true,
     "targets": "all",
-    "icon": [],
-    "resources": [],
-    "externalBin": []
+    "icon": ["icons/icon.png", "icons/icon.ico"],
+    "resources": {
+      "../../extension/dist/": "extension/"
+    },
+    "externalBin": [],
+    "windows": {
+      "nsis": {
+        "installerHooks": "installer-hooks.nsh"
+      }
+    }
   }
 }

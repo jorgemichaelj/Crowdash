@@ -1,4 +1,5 @@
 import React, { useEffect } from 'react';
+import { ExtensionConnection } from './services/extension/ExtensionConnection';
 import { Header } from './components/layout/Header';
 import { HomeView } from './features/home/HomeView';
 import { QueueView } from './features/queue/QueueView';
@@ -23,6 +24,7 @@ export function App() {
 
   return (
     <div className="min-h-screen flex flex-col bg-background text-foreground">
+      <ExtensionConnection />
       <Header />
 
       <main className="flex-1 p-4 sm:p-6">

@@ -1,1 +1,1 @@
-{}
+{"main-window":{"identifier":"main-window","description":"Receive download and extension events and let the user select an output folder.","local":true,"windows":["main"],"permissions":["core:event:allow-listen","core:event:allow-unlisten","dialog:allow-open"]}}

@@ -1,21 +1,30 @@
 {
   "manifest_version": 3,
-  "name": "Crowdash Companion",
+  "name": "CrowDash Companion",
   "version": "0.1.0",
-  "description": "Detecção e captura de mídia para o aplicativo Crowdash.",
+  "description": "Detecte vídeos e músicas e envie os downloads para o CrowDash.",
   "action": {
     "default_popup": "popup.html",
-    "default_title": "Crowdash"
+    "default_title": "CrowDash"
   },
   "permissions": [
     "webRequest",
     "downloads",
     "storage",
     "activeTab",
-    "nativeMessaging"
+    "nativeMessaging",
+    "scripting"
   ],
   "host_permissions": [
     "http://*/*",
     "https://*/*"
-  ]
+  ],
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAvBmwXoKlcsmgohL8Jom63LUVIXfAd+EKN7sKFDgS58GA+RWPJciplyAXjh+VpGAG6N4/FLINgV6bk+YvV+si8OgS6n/I+NujlpsX9EJJYOOWrJaRaSkKL3HAl0rs7hw2G6Fy/K/mbk0N/2BCMBlBQcCsvjwllooaV9//hHA0NJOMWVtk3UNMaMn7qf3a8/50HGhq1GB9yCa00Lidx07pmcX+VkJfS1KD0jI1CcjW8LznzyJzDWqRHYyZboRi2mgnU7Dcctz+BMZMOU0YdaKkXH2uHc/tCLGKyr2fXRdB+6Mm4z7N22fRZEzfuwSQIrxHHhcH7lHsj/1v8d6DYuvNwQIDAQAB",
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "icons": {
+    "128": "crowdash-logo.png"
+  }
 }
