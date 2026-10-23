@@ -83,8 +83,12 @@ def run(installer):
             fixtures.mkdir()
             ffmpeg = runtime / "ffmpeg.exe"
             execute([ffmpeg, "-v", "error", "-f", "lavfi", "-i", "testsrc=size=160x90:rate=10", "-f", "lavfi", "-i", "sine=frequency=440:sample_rate=44100", "-t", "2", "-c:v", "libx264", "-pix_fmt", "yuv420p", "-c:a", "aac", fixtures / "sample.mp4"])
-            execute([ffmpeg, "-v", "error", "-i", fixtures / "sample.mp4", "-c", "copy", "-hls_time", "1", "-hls_list_size", "0", fixtures / "stream.m3u8"])
-            execute([ffmpeg, "-v", "error", "-i", fixtures / "sample.mp4", "-c", "copy", "-f", "dash", fixtures / "dash.mpd"])
+            # Relative manifests plus an explicit cwd also keep Windows segment files
+            # next to the manifest, rather than in the repository working directory.
+            execute([ffmpeg, "-v", "error", "-i", fixtures / "sample.mp4", "-c", "copy", "-hls_time", "1", "-hls_list_size", "0", "stream.m3u8"], cwd=fixtures)
+            execute([ffmpeg, "-v", "error", "-i", fixtures / "sample.mp4", "-c", "copy", "-f", "dash", "dash.mpd"], cwd=fixtures)
+            for name in ["init-stream0.m4s", "init-stream1.m4s"]:
+                assert (fixtures / name).is_file(), f"DASH fixture is missing {name}"
             handler = functools.partial(SimpleHTTPRequestHandler, directory=str(fixtures))
             server = ThreadingHTTPServer(("127.0.0.1", 0), handler)
             threading.Thread(target=server.serve_forever, daemon=True).start()
