@@ -74,6 +74,13 @@ def run(installer):
                         raise RuntimeError(f"Installed app exited before startup: {app.returncode}")
                     time.sleep(0.25)
                 assert endpoint.exists(), "Installed app did not start its native connection"
+                import winreg
+                for browser in [r"Google\Chrome", r"Microsoft\Edge", "Chromium"]:
+                    with winreg.OpenKey(winreg.HKEY_CURRENT_USER, fr"Software\{browser}\NativeMessagingHosts\com.crowdash.host") as key:
+                        manifest_path = Path(winreg.QueryValue(key, None))
+                    native_manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+                    assert Path(native_manifest["path"]).resolve() == executable.resolve()
+                    assert native_manifest["allowed_origins"] == [f"chrome-extension://{extension_id}/"]
 
                 def message(payload):
                     data = json.dumps(payload).encode()
@@ -123,7 +130,6 @@ def run(installer):
             else:
                 config.write_bytes(previous)
         assert not (install / "runtime/ffmpeg.exe").exists(), "Uninstaller left runtime files behind"
-        import winreg
         for browser in [r"Google\Chrome", r"Microsoft\Edge", "Chromium"]:
             try:
                 with winreg.OpenKey(winreg.HKEY_CURRENT_USER, fr"Software\{browser}\NativeMessagingHosts\com.crowdash.host"):

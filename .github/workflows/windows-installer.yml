@@ -64,8 +64,15 @@ jobs:
       - name: Testar resolução das ferramentas do aplicativo
         shell: pwsh
         run: |
+          $ErrorActionPreference = 'Continue'
           $env:PATH = "$pwd/apps/desktop/src-tauri/runtime/windows-x64;$env:PATH"
-          cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml --lib --locked
+          cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml --lib --locked *>&1 | Tee-Object artifacts/windows/native-tests.log
+          $testExit = $LASTEXITCODE
+          if ($testExit -ne 0) {
+            $detail = ((Get-Content artifacts/windows/native-tests.log -Tail 35) -join "`n").Replace('%', '%25').Replace("`r", '%0D').Replace("`n", '%0A')
+            Write-Output "::error title=Erro nos testes nativos::$detail"
+          }
+          exit $testExit
       - name: Preparar arquivos para teste
         shell: pwsh
         run: |
@@ -77,8 +84,15 @@ jobs:
       - name: Instalar, testar downloads reais locais e desinstalar
         shell: pwsh
         run: |
+          $ErrorActionPreference = 'Continue'
           $installer = Get-ChildItem artifacts/windows/*.exe | Select-Object -First 1
-          python scripts/smoke_windows_install.py $installer.FullName
+          python scripts/smoke_windows_install.py $installer.FullName *>&1 | Tee-Object artifacts/windows/install-test.log
+          $testExit = $LASTEXITCODE
+          if ($testExit -ne 0) {
+            $detail = ((Get-Content artifacts/windows/install-test.log -Tail 35) -join "`n").Replace('%', '%25').Replace("`r", '%0D').Replace("`n", '%0A')
+            Write-Output "::error title=Erro ao testar o app instalado::$detail"
+          }
+          exit $testExit
       - name: Calcular checksum do instalador
         shell: pwsh
         run: |

@@ -36,7 +36,7 @@ Crowdash/
 pnpm install
 ```
 
-### Executar o App Desktop em Modo Desenvolvimento
+### Visualizar a interface no navegador (simulação)
 ```bash
 pnpm dev:desktop
 ```
@@ -46,7 +46,7 @@ Para testar somente a interface em qualquer computador, sem instalar ferramentas
 
 > **Atalho de Desenvolvedor:** Pressione `Ctrl + Shift + D` ou clique no ícone de terminal no cabeçalho para abrir o painel de testes do simulador (disparar tarefas de teste, simular falhas determinísticas e verificar atualizações).
 
-### Executar a Extensão do Navegador
+### Executar o aplicativo nativo e a extensão
 
 ```bash
 pnpm dev:native
