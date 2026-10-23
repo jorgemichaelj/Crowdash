@@ -1,5 +1,17 @@
 # Testar o CrowDash no Windows
 
+## CrowDash 0.1.0 instalável — Windows 10/11 de 64 bits
+
+Em [Actions → Windows — instalador de teste](https://github.com/jorgemichaelj/Crowdash/actions/workflows/windows-installer.yml), abra uma execução **concluída com sucesso** da branch `release/windows-v0.1.0` ou da `main` depois do merge. Baixe **Artifacts → crowdash-windows-test**, extraia o ZIP e execute o arquivo `CrowDash_0.1.0_x64-setup.exe` (o nome pode variar conforme a versão do Tauri).
+
+O instalador instala para o usuário atual, cria um atalho no menu Iniciar e inclui **yt-dlp, FFmpeg, ffprobe, Deno e a extensão**. Não precisa instalar Node.js, pnpm, Rust, Visual Studio ou ferramentas de mídia no computador de uso. Se o WebView2 ainda não estiver instalado, o bootstrapper incluído baixa o runtime da Microsoft durante a instalação, com conexão à internet.
+
+Abra o **CrowDash pelo menu Iniciar**. Em **Configurações → Geral**, escolha a pasta de destino. Para o primeiro teste, cole o link de um vídeo público curto, clique em **Analisar**, escolha MP4 ou MP3 e acompanhe a fila. Para comprimir, abra **Comprimir**, escolha um vídeo pelo seletor de arquivos e defina o tamanho desejado. Os arquivos originais são entradas do FFmpeg; a saída fica na pasta configurada.
+
+A extensão é carregada manualmente pelo Chrome/Edge nesta versão. No app, abra **Configurações → Navegador → Abrir pasta da extensão** e siga [o guia da extensão](EXTENSAO.md).
+
+O artefato inclui `SHA256SUMS.txt`, com o checksum do instalador, e `runtime-manifest.json`, com as versões e hashes das ferramentas. Dentro do app instalado, `runtime/notices/` contém licenças, informações do fornecedor e referências de código-fonte. É uma versão de teste, ainda sem assinatura digital ou atualização automática.
+
 ## Somente a interface, sem instalar ferramentas no PC
 
 Abra [um GitHub Codespace](https://codespaces.new/jorgemichaelj/Crowdash?ref=main). No terminal do próprio navegador:
@@ -44,6 +56,8 @@ pnpm.cmd dev:native
 
 O comando nativo procura também `%USERPROFILE%\.cargo\bin` (ou `%CARGO_HOME%\bin`), mesmo se o terminal ainda não tiver recebido esse caminho no PATH. Se o Rust estiver ausente ou a toolchain não estiver configurada, ele mostra instruções antes de chamar o Tauri. Essa checagem não verifica o compilador C++, SDK ou WebView2; as demais falhas continuam sendo reportadas pelo Tauri.
 
+Depois de executar `dev:native`, aguarde a compilação e use a **janela do CrowDash** que abre automaticamente. O endereço `localhost:5173` exibido pelo Vite abre uma prévia no navegador, com downloads simulados. No navegador, o app exibe **Modo de demonstração** e o botão **Simular download**. A janela nativa identifica-se como **Aplicativo desktop**. Se aparecer “Amostra de Demonstração” ao analisar um link, você está no simulador; a análise nativa consulta os metadados reais com yt-dlp.
+
 Se o Cargo foi instalado, mas disser que não há uma versão padrão, execute `rustup default stable`.
 
 ## Instalador gerado no GitHub
@@ -52,6 +66,8 @@ O workflow **Windows — instalador de teste** pode ser executado manualmente em
 
 Quando a execução terminar, baixe o artefato **crowdash-windows-test**, extraia o ZIP e execute o instalador `.exe`. A pasta `extension` do artefato contém a extensão para carregar sem compactação. Ela também é incluída nos recursos do aplicativo instalado e pode ser aberta em **Configurações → Navegador**.
 
-Quem usa o instalador não precisa de Node.js, pnpm, Cargo ou Visual Studio. **Nesta etapa, yt-dlp e FFmpeg/ffprobe ainda são dependências externas:** instale-os no PC onde fará downloads reais e deixe-os no PATH. O instalador de teste não é assinado nem publicado como release automaticamente. Compilação bem-sucedida não substitui o teste de instalação e conexão no computador de destino.
+O workflow verifica TypeScript, testes e as ferramentas baixadas, compila o instalador e faz um teste de instalação em um caminho com espaços. O app instalado é iniciado com um PATH que contém somente as pastas do Windows; o teste envia downloads MP4, HLS e DASH pelo executável de Native Messaging e verifica as saídas com ffprobe. Também verifica a desinstalação e a remoção do registro do host no navegador. Isso não substitui o teste manual com YouTube e a extensão no seu computador.
+
+Para gerar o instalador localmente no Windows, instale também Python 3.11+ e execute `pnpm.cmd build:windows`. As versões e checksums das ferramentas estão fixados em `scripts/windows-runtime.json`; os binários são gerados em `apps/desktop/src-tauri/runtime/` e não entram no Git. O perfil `tauri.windows-release.conf.json` inclui esses recursos apenas no build de distribuição; `dev:native` continua permitindo as ferramentas do PATH em desenvolvimento.
 
 Veja [o guia da extensão](EXTENSAO.md) para conectar o Chrome ou Edge.

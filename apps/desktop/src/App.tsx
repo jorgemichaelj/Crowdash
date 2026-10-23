@@ -1,6 +1,8 @@
 import React, { useEffect } from 'react';
 import { ExtensionConnection } from './services/extension/ExtensionConnection';
 import { Header } from './components/layout/Header';
+import { RuntimeNotice } from './components/layout/RuntimeNotice';
+import { useBackendMode } from './services/backend/BackendProvider';
 import { HomeView } from './features/home/HomeView';
 import { QueueView } from './features/queue/QueueView';
 import { SettingsView } from './features/settings/SettingsView';
@@ -9,6 +11,7 @@ import { UpdateDialog } from './features/update/UpdateDialog';
 import { useAppStore } from './stores/appStore';
 
 export function App() {
+  const mode = useBackendMode();
   const { currentTab, setDevPanelOpen } = useAppStore();
 
   useEffect(() => {
@@ -28,6 +31,7 @@ export function App() {
       <Header />
 
       <main className="flex-1 p-4 sm:p-6">
+        <RuntimeNotice mode={mode} />
         {currentTab === 'home' && <HomeView />}
         {currentTab === 'queue' && <QueueView />}
         {currentTab === 'settings' && <SettingsView />}

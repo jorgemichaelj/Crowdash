@@ -341,6 +341,7 @@ async fn run_download_job(
     };
     std::fs::create_dir_all(output_folder)?;
     let mut args: Vec<String> = ["--ignore-config", "--no-warnings", "--no-simulate", "--progress", "--newline", "--no-playlist", "--socket-timeout", "30", "--retries", "3", "--windows-filenames"].map(String::from).to_vec();
+    args.extend(crate::tools::ytdlp_args());
     args.extend(format_args(&options.mode, &options.quality, &options.container)?);
     args.extend(["-P".into(), output_folder.into(), "-o".into(), "%(title)s [%(id)s].%(ext)s".into(), "--print".into(), "after_move:CROWDASH_FILE:%(filepath)s".into(), "--".into(), url]);
     run_with_progress(job_id, &find_ytdlp(), &args, ProgressParser::YtDlp, manager).await?
@@ -376,7 +377,8 @@ async fn run_batch_job(
         let result = if step.posts {
             export_posts(job_id, url, &step.folder, manager.clone()).await
         } else {
-            let args = step_args(step, &options.mode, &options.quality, &options.container)?;
+            let mut args = crate::tools::ytdlp_args();
+            args.extend(step_args(step, &options.mode, &options.quality, &options.container)?);
             run_with_progress(job_id, &find_ytdlp(), &args, ProgressParser::YtDlp, manager.clone()).await.map(|_| ())
         };
         if let Err(error) = result {
@@ -670,7 +672,10 @@ async fn run_with_progress(
         }
     }
     if is_cancelled(job_id, &manager).await { return Err(anyhow!("CANCELLED")); }
-    let mut child = tokio::process::Command::new(binary).args(args)
+    let mut command = tokio::process::Command::new(binary);
+    #[cfg(windows)]
+    command.creation_flags(0x08000000);
+    let mut child = command.args(args)
         .kill_on_drop(true)
         .stdout(std::process::Stdio::piped()).stderr(std::process::Stdio::piped())
         .spawn().map_err(|e| anyhow!("Falha ao iniciar {}: {}", binary, e))?;
@@ -757,7 +762,7 @@ fn parse_ytdlp_progress(line: &str) -> Option<f64> {
 
 fn get_duration_secs(path: &str) -> f64 {
     let ffprobe = find_ffprobe();
-    let output = std::process::Command::new(&ffprobe)
+    let output = crate::tools::command(&ffprobe)
         .args([
             "-v", "quiet",
             "-print_format", "json",
@@ -776,7 +781,7 @@ fn get_duration_secs(path: &str) -> f64 {
 
 fn detect_best_video_encoder(container: &str) -> String {
     // Tentar NVENC primeiro
-    let test = std::process::Command::new(find_ffmpeg())
+    let test = crate::tools::command(find_ffmpeg())
         .args(["-hide_banner", "-encoders"])
         .output();
 

@@ -1,28 +1,41 @@
 import React, { useState } from 'react';
 import { Card, Button, Input, Toggle } from '../../../components/ui';
-import { useBackend } from '../../../services/backend/BackendProvider';
+import { useBackend, useBackendMode } from '../../../services/backend/BackendProvider';
+import { localMediaFile, pickLocalMediaFiles } from '../../../services/files/localFiles';
 import { useToast } from '../../../components/ui/toast';
 import { useAppStore } from '../../../stores/appStore';
 import { Minimize2, UploadCloud, FolderOpen, Share2 } from 'lucide-react';
 
 export function MediaCompressTab() {
   const backend = useBackend();
+  const native = useBackendMode() === 'native';
   const { showToast } = useToast();
   const { setCurrentTab } = useAppStore();
 
   const [selectedFile, setSelectedFile] = useState<string | null>(null);
   const [targetSizeMB, setTargetSizeMB] = useState(25);
   const [precise, setPrecise] = useState(true);
+  const [compressing, setCompressing] = useState(false);
+
+  const pickVideo = async () => {
+    try { const [file] = await pickLocalMediaFiles(false, true); if (file) setSelectedFile(file.path); }
+    catch { showToast('Não foi possível abrir o seletor de vídeos.', 'error'); }
+  };
 
   const handleCompress = async () => {
-    if (!selectedFile) return;
+    if (!selectedFile || !Number.isFinite(targetSizeMB) || targetSizeMB <= 0) return;
+    setCompressing(true);
+    try {
     await backend.enqueue({
       kind: 'file',
       path: selectedFile,
+      name: localMediaFile(selectedFile).name,
       options: { op: 'compress', targetSizeMB, preciseSize: precise },
     });
-    showToast(`Compressão para ${targetSizeMB}MB adicionada à fila!`, 'success');
+    showToast(native ? `Compressão para ${targetSizeMB}MB adicionada à fila!` : 'Compressão simulada adicionada à fila. Nenhum arquivo será salvo.', native ? 'success' : 'info');
     setCurrentTab('queue');
+    } catch { showToast('Não foi possível adicionar a compressão à fila.', 'error'); }
+    finally { setCompressing(false); }
   };
 
   return (
@@ -44,7 +57,7 @@ export function MediaCompressTab() {
               <UploadCloud className="w-6 h-6" />
             </div>
             <div>
-              <input
+              {native ? <Button variant="secondary" onClick={pickVideo} className="rounded-xl"><FolderOpen className="w-4 h-4 mr-2" /> Escolher Vídeo para Comprimir</Button> : <><input
                 type="file"
                 id="compress-file-input"
                 className="hidden"
@@ -62,12 +75,13 @@ export function MediaCompressTab() {
                 <FolderOpen className="w-4 h-4 text-primary" />
                 Escolher Vídeo para Comprimir
               </label>
+              </>}
             </div>
           </div>
         ) : (
           <div className="space-y-5 animate-in fade-in">
             <div className="flex items-center justify-between p-3 bg-muted/40 rounded-xl border border-border text-xs">
-              <span className="font-semibold text-foreground truncate">{selectedFile}</span>
+              <span title={selectedFile} className="font-semibold text-foreground truncate">{localMediaFile(selectedFile).name}</span>
               <button
                 onClick={() => setSelectedFile(null)}
                 className="text-xs text-muted-foreground hover:text-foreground cursor-pointer"
@@ -130,8 +144,8 @@ export function MediaCompressTab() {
               description="Ajusta o bitrate com rigor para não ultrapassar o limite."
             />
 
-            <Button className="w-full h-11 rounded-xl shadow-sm text-sm" onClick={handleCompress}>
-              Comprimir Arquivo para {targetSizeMB} MB
+            <Button className="w-full h-11 rounded-xl shadow-sm text-sm" onClick={handleCompress} isLoading={compressing} disabled={!Number.isFinite(targetSizeMB) || targetSizeMB <= 0}>
+              {native ? 'Comprimir arquivo' : 'Simular compressão'} para {targetSizeMB} MB
             </Button>
           </div>
         )}

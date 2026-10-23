@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Card, Input, Button } from '../../../components/ui';
 import { Skeleton } from '../../../components/ui/feedback';
 import { SubtitleSettings } from '../../subtitles/SubtitleSettings';
-import { useBackend } from '../../../services/backend/BackendProvider';
+import { useBackend, useBackendMode } from '../../../services/backend/BackendProvider';
 import { useToast } from '../../../components/ui/toast';
 import { useAppStore } from '../../../stores/appStore';
 import type { DownloadOptions, JobInput, MediaInfo, SubtitleOptions } from '@crowdash/shared';
@@ -13,6 +13,7 @@ import { Link, Download, ClipboardPaste, ListVideo } from 'lucide-react';
 
 export function WebDownloaderTab() {
   const backend = useBackend();
+  const demo = useBackendMode() === 'demo';
   const { showToast } = useToast();
   const { setCurrentTab, pendingDownloadUrl, setPendingDownloadUrl } = useAppStore();
   const [inputUrl, setInputUrl] = useState('');
@@ -66,7 +67,7 @@ export function WebDownloaderTab() {
     setDownloading(true);
     try {
       await backend.enqueue(input);
-      showToast('Download adicionado à fila!', 'success');
+      showToast(demo ? 'Simulação adicionada à fila. Nenhum arquivo será baixado.' : 'Download adicionado à fila!', demo ? 'info' : 'success');
       setCurrentTab('queue');
     } catch (err: any) {
       showToast(err.message || 'Não foi possível iniciar o download.', 'error');
@@ -97,7 +98,7 @@ export function WebDownloaderTab() {
       {mediaInfo && !isAnalyzing && (
         <Card className="p-4 sm:p-6 rounded-2xl space-y-5">
           {mediaInfo.collectionType === 'channel' ? (
-            <ChannelDownloadOptions key={mediaInfo.canonicalUrl} media={mediaInfo} options={options} onOptionsChange={setOptions} onDownload={enqueue} downloading={downloading} />
+            <ChannelDownloadOptions key={mediaInfo.canonicalUrl} media={mediaInfo} options={options} onOptionsChange={setOptions} onDownload={enqueue} downloading={downloading} demo={demo} />
           ) : (
             <>
               <div className="flex items-start gap-4">
@@ -117,7 +118,7 @@ export function WebDownloaderTab() {
               } : {
                 kind: 'url', url: mediaInfo.canonicalUrl!, title: mediaInfo.title, options: { ...options, ...(options.mode === 'video' ? { subtitles } : {}) },
               })}>
-                <Download className="w-4 h-4 mr-2" /> {mediaInfo.collectionType === 'playlist' ? 'Baixar playlist completa' : options.mode === 'audio' ? 'Baixar música / áudio' : 'Baixar vídeo'}
+                <Download className="w-4 h-4 mr-2" /> {demo ? 'Simular download' : mediaInfo.collectionType === 'playlist' ? 'Baixar playlist completa' : options.mode === 'audio' ? 'Baixar música / áudio' : 'Baixar vídeo'}
               </Button>
               {mediaInfo.playlistUrl && <div className="border-t border-border pt-4 space-y-2">
                 <p className="text-xs text-muted-foreground">Este vídeo também pertence a uma playlist. Baixar a coleção exige uma escolha separada.</p>

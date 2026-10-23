@@ -2,9 +2,11 @@ import React from 'react';
 import { useAppStore } from '../../stores/appStore';
 import { IconButton, Badge } from '../../components/ui';
 import { useI18n } from '../../i18n';
+import { useBackendMode } from '../../services/backend/BackendProvider';
 import { ListOrdered, Settings, Terminal } from 'lucide-react';
 
 export function Header() {
+  const mode = useBackendMode();
   const { currentTab, setCurrentTab, jobs, setDevPanelOpen } = useAppStore();
   const { t } = useI18n();
 
@@ -25,6 +27,7 @@ export function Header() {
         <span>
           <span className="crowdash-wordmark block text-2xl font-bold text-foreground leading-none">Crow<span className="text-primary">Dash</span></span>
           <span className="block text-[10px] text-muted-foreground mt-1">{t.app.tagline}</span>
+          <span className="block text-[10px] text-primary mt-1">{mode === 'native' ? 'Aplicativo desktop' : 'Prévia da interface'}</span>
         </span>
       </button>
 

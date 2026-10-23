@@ -4,7 +4,7 @@ A extensão Manifest V3 detecta mídia real e usa Native Messaging para se comun
 
 ## Testar no computador
 
-Pré-requisitos do app: Node.js 24+, pnpm 12+, Rust estável, pré-requisitos nativos do Tauri 2, yt-dlp e FFmpeg no PATH.
+Para usar o instalador Windows 0.1.0, siga [o guia do Windows](WINDOWS.md); as ferramentas de mídia já são incluídas. Para desenvolver a partir do código, os pré-requisitos são Node.js 24+, pnpm 12+, Rust estável, pré-requisitos nativos do Tauri 2, yt-dlp e FFmpeg no PATH.
 
 Na raiz do projeto:
 

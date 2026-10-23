@@ -246,14 +246,31 @@ pub async fn read_metadata(binary: &str, url: &str, collection: bool) -> Result<
     read_metadata_with_timeout(binary, url, collection, std::time::Duration::from_secs(30)).await
 }
 
+pub async fn read_metadata_with_runtime(binary: &str, url: &str, collection: bool, runtime_args: &[String]) -> Result<serde_json::Value> {
+    read_metadata_command(binary, url, collection, std::time::Duration::from_secs(30), runtime_args).await
+}
+
 async fn read_metadata_with_timeout(
     binary: &str,
     url: &str,
     collection: bool,
     deadline: std::time::Duration,
 ) -> Result<serde_json::Value> {
+    read_metadata_command(binary, url, collection, deadline, &[]).await
+}
+
+async fn read_metadata_command(
+    binary: &str,
+    url: &str,
+    collection: bool,
+    deadline: std::time::Duration,
+    runtime_args: &[String],
+) -> Result<serde_json::Value> {
     let mut command = tokio::process::Command::new(binary);
+    #[cfg(windows)]
+    command.creation_flags(0x08000000); // CREATE_NO_WINDOW for the bundled console tool
     command
+        .args(runtime_args)
         .args(metadata_args(url, collection))
         .kill_on_drop(true);
     let output = tokio::time::timeout(deadline, command.output())

@@ -24,3 +24,9 @@ Thumbs.db
 /crates/download-core/target/
 
 /crates/extension-bridge/target/
+
+# Downloaded installer tools (verified and generated during the Windows build)
+/apps/desktop/src-tauri/runtime/
+/.cache/
+/artifacts/
+__pycache__/

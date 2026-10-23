@@ -2,6 +2,8 @@ name: Windows — instalador de teste
 
 on:
   workflow_dispatch:
+  push:
+    branches: [release/windows-v0.1.0]
 
 permissions:
   contents: read
@@ -19,6 +21,9 @@ jobs:
         with:
           node-version: 24
           cache: pnpm
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
       - name: Configurar Rust estável
         shell: pwsh
         run: |
@@ -31,12 +36,18 @@ jobs:
         run: pnpm lint
       - name: Testar interface, extensão e inicialização
         run: pnpm test
+      - name: Testar preparação do pacote
+        run: python -m unittest discover -s scripts -p "test_*.py"
       - name: Testar downloads
         run: cargo test --manifest-path crates/download-core/Cargo.toml --locked
       - name: Testar conexão nativa
         run: cargo test --manifest-path crates/extension-bridge/Cargo.toml --locked
+      - name: Preparar ferramentas incluídas no instalador
+        run: python scripts/prepare_windows_runtime.py
       - name: Compilar instalador Windows e incluir a extensão
-        run: pnpm --filter @crowdash/desktop build:native --bundles nsis
+        run: pnpm --filter @crowdash/desktop build:native --config src-tauri/tauri.windows-release.conf.json --bundles nsis
+      - name: Testar resolução das ferramentas do aplicativo
+        run: cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml --lib --locked
       - name: Preparar arquivos para teste
         shell: pwsh
         run: |
@@ -44,7 +55,18 @@ jobs:
           Copy-Item apps/desktop/src-tauri/target/release/bundle/nsis/*.exe artifacts/windows/
           Copy-Item apps/extension/dist/* artifacts/windows/extension/ -Recurse
           Copy-Item docs/WINDOWS.md artifacts/windows/LEIA-ME.md
+          Copy-Item apps/desktop/src-tauri/runtime/windows-x64/manifest.json artifacts/windows/runtime-manifest.json
+      - name: Instalar, testar downloads reais locais e desinstalar
+        shell: pwsh
+        run: |
+          $installer = Get-ChildItem artifacts/windows/*.exe | Select-Object -First 1
+          python scripts/smoke_windows_install.py $installer.FullName
+      - name: Calcular checksum do instalador
+        shell: pwsh
+        run: |
+          Get-ChildItem artifacts/windows/*.exe | ForEach-Object { "$((Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLower())  $($_.Name)" } | Set-Content artifacts/windows/SHA256SUMS.txt
       - uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: crowdash-windows-test
           path: artifacts/windows/

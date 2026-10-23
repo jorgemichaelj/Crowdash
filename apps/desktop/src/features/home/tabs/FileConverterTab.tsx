@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Card, Button, Toggle } from '../../../components/ui';
-import { useBackend } from '../../../services/backend/BackendProvider';
+import { useBackend, useBackendMode } from '../../../services/backend/BackendProvider';
+import { localMediaFile, pickLocalMediaFiles, type LocalMediaFile } from '../../../services/files/localFiles';
 import { useToast } from '../../../components/ui/toast';
 import { useAppStore } from '../../../stores/appStore';
 import type { MediaCategory, OutputContainer } from '@crowdash/shared';
@@ -15,15 +16,13 @@ import {
   Sparkles,
 } from 'lucide-react';
 
-interface SelectedFileItem {
+interface SelectedFileItem extends LocalMediaFile {
   id: string;
-  name: string;
-  category: MediaCategory;
-  ext: string;
 }
 
 export function FileConverterTab() {
   const backend = useBackend();
+  const native = useBackendMode() === 'native';
   const { showToast } = useToast();
   const { setCurrentTab } = useAppStore();
 
@@ -32,6 +31,7 @@ export function FileConverterTab() {
   const [targetFormat, setTargetFormat] = useState<OutputContainer>('png');
   const [keepQuality, setKeepOriginalQuality] = useState(true);
   const [isDragOver, setIsDragOver] = useState(false);
+  const [converting, setConverting] = useState(false);
 
   const imageFormats: { format: OutputContainer; label: string; desc: string }[] = [
     { format: 'png', label: 'PNG', desc: 'Alta qualidade com transparência (recomendado)' },
@@ -61,26 +61,8 @@ export function FileConverterTab() {
       ? videoFormats
       : audioFormats;
 
-  const handleFileSelection = (files: FileList | null) => {
-    if (!files) return;
-    const items: SelectedFileItem[] = [];
-
-    for (let i = 0; i < files.length; i++) {
-      const file = files[i];
-      const ext = file.name.split('.').pop()?.toLowerCase() || '';
-
-      let cat: MediaCategory = 'image';
-      if (['mp4', 'mkv', 'webm', 'mov', 'avi'].includes(ext)) cat = 'video';
-      else if (['mp3', 'wav', 'flac', 'm4a', 'ogg'].includes(ext)) cat = 'audio';
-
-      items.push({
-        id: Math.random().toString(36).substring(2, 9),
-        name: file.name,
-        category: cat,
-        ext,
-      });
-    }
-
+  const addFiles = (files: LocalMediaFile[]) => {
+    const items = files.map(file => ({ ...file, id: crypto.randomUUID() }));
     setSelectedFiles((prev) => [...prev, ...items]);
     if (items[0]) {
       setFilterCategory(items[0].category);
@@ -90,13 +72,22 @@ export function FileConverterTab() {
     }
   };
 
+  const handleFileSelection = (files: FileList | null) => {
+    if (files) addFiles(Array.from(files, file => localMediaFile(file.name)));
+  };
+  const pickFiles = async () => {
+    try { addFiles(await pickLocalMediaFiles(true)); }
+    catch { showToast('Não foi possível abrir o seletor de arquivos.', 'error'); }
+  };
+
   const handleConvertAll = async () => {
     if (selectedFiles.length === 0) return;
-
+    setConverting(true);
+    try {
     for (const item of selectedFiles) {
       await backend.enqueue({
         kind: 'file',
-        path: `C:\\Arquivos\\${item.name}`,
+        path: item.path,
         name: item.name,
         options: {
           op: 'convert',
@@ -108,11 +99,13 @@ export function FileConverterTab() {
     }
 
     showToast(
-      `${selectedFiles.length} arquivo(s) enviados para conversão em .${targetFormat.toUpperCase()}!`,
-      'success'
+      native ? `${selectedFiles.length} arquivo(s) enviados para conversão em .${targetFormat.toUpperCase()}!` : 'Conversão simulada adicionada à fila. Nenhum arquivo será salvo.',
+      native ? 'success' : 'info'
     );
     setSelectedFiles([]);
     setCurrentTab('queue');
+    } catch { showToast('Não foi possível adicionar a conversão à fila.', 'error'); }
+    finally { setConverting(false); }
   };
 
   return (
@@ -175,7 +168,8 @@ export function FileConverterTab() {
         onDrop={(e) => {
           e.preventDefault();
           setIsDragOver(false);
-          handleFileSelection(e.dataTransfer.files);
+          if (native) { showToast('Use Selecionar Arquivos no Computador para escolher os arquivos.', 'info'); }
+          else handleFileSelection(e.dataTransfer.files);
         }}
         className={`relative rounded-2xl border-2 border-dashed p-8 transition-all text-center ${
           isDragOver
@@ -190,7 +184,7 @@ export function FileConverterTab() {
 
           <div className="space-y-1">
             <h4 className="text-sm font-semibold text-foreground">
-              Arraste suas {filterCategory === 'image' ? 'fotos (.webp, .png, .jpg)' : filterCategory === 'video' ? 'vídeos' : 'músicas'} para cá
+              {native ? 'Selecione os arquivos que deseja converter' : `Arraste ${filterCategory === 'image' ? 'suas fotos (.webp, .png, .jpg)' : filterCategory === 'video' ? 'seus vídeos' : 'suas músicas'} para cá`}
             </h4>
             <p className="text-xs text-muted-foreground">
               Suporta múltiplos arquivos de uma só vez
@@ -198,7 +192,7 @@ export function FileConverterTab() {
           </div>
 
           <div>
-            <input
+            {native ? <Button onClick={pickFiles} className="rounded-xl"><FolderOpen className="w-4 h-4 mr-2" /> Selecionar Arquivos no Computador</Button> : <><input
               type="file"
               id="converter-file-input"
               multiple
@@ -212,6 +206,7 @@ export function FileConverterTab() {
               <FolderOpen className="w-4 h-4" />
               Selecionar Arquivos no Computador
             </label>
+            </>}
           </div>
         </div>
       </div>
@@ -311,8 +306,9 @@ export function FileConverterTab() {
           <Button
             className="w-full h-11 rounded-xl shadow-sm text-sm"
             onClick={handleConvertAll}
+            isLoading={converting}
           >
-            Converter {selectedFiles.length} Arquivo(s) para .{targetFormat.toUpperCase()}
+            {native ? 'Converter' : 'Simular conversão de'} {selectedFiles.length} Arquivo(s) para .{targetFormat.toUpperCase()}
           </Button>
         </Card>
       )}

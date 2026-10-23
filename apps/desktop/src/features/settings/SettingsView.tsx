@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Card, Button, Input, Toggle } from '../../components/ui';
-import { useBackend } from '../../services/backend/BackendProvider';
+import { useBackend, useBackendMode } from '../../services/backend/BackendProvider';
 import { useToast } from '../../components/ui/toast';
 import { useAppStore } from '../../stores/appStore';
 import { useI18n } from '../../i18n';
@@ -10,6 +10,7 @@ import { Folder, Cpu, Globe, Sliders, Info, Trash2, CheckCircle2 } from 'lucide-
 
 export function SettingsView() {
   const backend = useBackend();
+  const native = useBackendMode() === 'native';
   const { showToast } = useToast();
   const { theme, setTheme, setUpdateAvailable } = useAppStore();
   const { t } = useI18n();
@@ -274,11 +275,11 @@ export function SettingsView() {
                 <strong>Crowdash Desktop</strong>
               </p>
               <p className="text-muted-foreground">
-                {t.settings.about.version}: 0.1.0 (Frontend Prototype)
+                {t.settings.about.version}: 0.1.0 — versão de teste
               </p>
             </div>
 
-            <Button
+            {native ? <a href="https://github.com/jorgemichaelj/Crowdash/actions/workflows/windows-installer.yml" target="_blank" rel="noreferrer" className="inline-block text-xs text-primary underline underline-offset-2">Ver instaladores de teste no GitHub</a> : <Button
               variant="secondary"
               size="sm"
               onClick={async () => {
@@ -292,6 +293,7 @@ export function SettingsView() {
             >
               {t.settings.about.checkUpdates}
             </Button>
+            }
           </Card>
         )}
       </div>

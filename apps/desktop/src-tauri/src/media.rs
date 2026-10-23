@@ -3,7 +3,6 @@
 use anyhow::{anyhow, Result};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use std::process::Command;
 
 use crate::hardware::{find_ffprobe, find_ytdlp};
 
@@ -72,12 +71,13 @@ pub struct MediaInfo {
 // ─── Análise de URL ───────────────────────────────────────────────────────────
 
 pub async fn analyze_url(url: &str) -> Result<MediaInfo> {
-    use crowdash_download_core::{classify_url, read_metadata, MediaUrl};
+    use crowdash_download_core::{classify_url, read_metadata_with_runtime, MediaUrl};
     let ytdlp = find_ytdlp();
+    let runtime_args = crate::tools::ytdlp_args();
     match classify_url(url)? {
         MediaUrl::Channel { url, name } => {
             // One flat entry is enough to resolve a channel name. Never enumerate its catalog here.
-            let json = read_metadata(&ytdlp, &url, true).await?;
+            let json = read_metadata_with_runtime(&ytdlp, &url, true, &runtime_args).await?;
             let channel_name = json["channel"].as_str().or_else(|| json["uploader"].as_str()).unwrap_or(&name).to_string();
             Ok(MediaInfo {
                 source: "url".into(), title: format!("Canal: {channel_name}"),
@@ -87,7 +87,7 @@ pub async fn analyze_url(url: &str) -> Result<MediaInfo> {
             })
         }
         MediaUrl::Playlist { url } => {
-            let json = read_metadata(&ytdlp, &url, true).await?;
+            let json = read_metadata_with_runtime(&ytdlp, &url, true, &runtime_args).await?;
             // playlist_count is provider metadata; entries.len() is only our one-entry sample.
             let count = json["playlist_count"].as_u64().and_then(|n| u32::try_from(n).ok());
             Ok(MediaInfo {
@@ -98,7 +98,7 @@ pub async fn analyze_url(url: &str) -> Result<MediaInfo> {
             })
         }
         MediaUrl::Video { url, playlist_url } => {
-            let json = read_metadata(&ytdlp, &url, false).await?;
+            let json = read_metadata_with_runtime(&ytdlp, &url, false, &runtime_args).await?;
             let mut info = parse_ytdlp_single_video(&json, &url)?;
             info.canonical_url = Some(url);
             info.playlist_url = playlist_url;
@@ -189,7 +189,7 @@ pub fn analyze_file(path: &str) -> Result<MediaInfo> {
 
     // Áudio e vídeo: usar ffprobe
     let ffprobe = find_ffprobe();
-    let output = Command::new(&ffprobe)
+    let output = crate::tools::command(&ffprobe)
         .args([
             "-v", "quiet",
             "-print_format", "json",
@@ -248,7 +248,7 @@ fn analyze_image_file(path: &str, ext: &str) -> Result<MediaInfo> {
 
 fn read_image_dimensions_ffprobe(path: &str) -> Option<(u32, u32)> {
     let ffprobe = find_ffprobe();
-    let output = Command::new(&ffprobe)
+    let output = crate::tools::command(&ffprobe)
         .args([
             "-v", "quiet",
             "-print_format", "json",

@@ -15,12 +15,13 @@ export const channelChoices: { value: ChannelDownloadSelection; label: string; d
   { value: 'all', label: 'Canal todo', description: 'Vídeos, shorts, playlists, capas e publicações públicas.', folders: ['videos', 'shorts', 'playlists', 'thumbs', 'publicacoes'] },
 ];
 
-export function ChannelDownloadOptions({ media, options, onOptionsChange, onDownload, downloading }: {
+export function ChannelDownloadOptions({ media, options, onOptionsChange, onDownload, downloading, demo = false }: {
   media: MediaInfo;
   options: DownloadOptions;
   onOptionsChange: (options: DownloadOptions) => void;
   onDownload: (input: JobInput) => Promise<void>;
   downloading: boolean;
+  demo?: boolean;
 }) {
   const [selection, setSelection] = useState<ChannelDownloadSelection>('videos');
   const choice = channelChoices.find(c => c.value === selection)!;
@@ -53,7 +54,7 @@ export function ChannelDownloadOptions({ media, options, onOptionsChange, onDown
         kind: 'batch', batchType: 'channel', url: media.canonicalUrl!, title: `Canal: ${channel} — ${choice.label}`,
         channelName: channel, selection, options,
       })}>
-        <Download className="w-4 h-4 mr-2" /> Baixar: {choice.label}
+        <Download className="w-4 h-4 mr-2" /> {demo ? 'Simular download' : 'Baixar'}: {choice.label}
       </Button>
     </section>
   );

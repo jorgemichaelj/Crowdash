@@ -11,7 +11,8 @@
     "dev:extension": "pnpm --filter @crowdash/extension dev",
     "dev:native": "pnpm --filter @crowdash/desktop dev:native",
     "check:rust": "node scripts/dev-native.mjs --check",
-    "build:native": "pnpm --filter @crowdash/desktop build:native"
+    "build:native": "pnpm --filter @crowdash/desktop build:native",
+    "build:windows": "python scripts/prepare_windows_runtime.py && pnpm --filter @crowdash/desktop build:native --config src-tauri/tauri.windows-release.conf.json --bundles nsis"
   },
   "devDependencies": {
     "@types/node": "^22.13.0",

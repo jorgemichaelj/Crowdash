@@ -44,6 +44,8 @@ function main() {
   }
   console.log(`${result.cargo.stdout.trim()} · ${result.rustc.stdout.trim()}`);
   if (process.argv.includes('--check')) return;
+  console.log('Aguarde a compilação e use a janela do CrowDash que será aberta automaticamente.');
+  console.log('O endereço localhost exibido pelo Vite é uma prévia no navegador com downloads simulados.');
   const desktop = new URL('../apps/desktop/', import.meta.url);
   const require = createRequire(new URL('package.json', desktop));
   // Run the JS CLI directly: no .cmd/shell quoting is needed on Windows.

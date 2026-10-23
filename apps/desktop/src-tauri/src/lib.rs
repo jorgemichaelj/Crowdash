@@ -7,6 +7,7 @@ mod media;
 mod settings;
 mod hardware;
 mod extension;
+mod tools;
 
 use tauri::Manager;
 use jobs::JobManager;
@@ -38,6 +39,7 @@ pub fn desktop_builder() -> tauri::Builder<tauri::Wry> {
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_process::init())
         .setup(|app| {
+            tools::configure(app.path().resource_dir()?);
             let settings = SettingsStore::load(app.handle()).unwrap_or_default();
             let job_manager = JobManager::new(app.handle().clone(), settings.settings.clone());
             app.manage(std::sync::Arc::new(tokio::sync::Mutex::new(settings)));

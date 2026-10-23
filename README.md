@@ -4,6 +4,8 @@ Crowdash é uma ferramenta rápida e simples para baixar, converter e comprimir 
 
 > **Status atual:** Interface, backend Tauri e extensão Native Messaging implementados. O modo web usa o simulador; downloads reais são executados pelo aplicativo nativo com yt-dlp e FFmpeg.
 
+**Primeira versão instalável:** veja [como obter e testar o CrowDash 0.1.0 no Windows](docs/WINDOWS.md). O instalador de 64 bits inclui as ferramentas de mídia e a extensão; não exige ferramentas de desenvolvimento no computador do usuário.
+
 ---
 
 ## Estrutura do Monorepo
@@ -64,7 +66,9 @@ O modo web usa o simulador. Downloads reais usam `pnpm dev:native`, com os pré-
 
 ### Gerar um instalador Windows sem compilar no PC
 
-Em **Actions → Windows — instalador de teste**, execute **Run workflow**. A execução testa o projeto e disponibiliza o instalador NSIS e a extensão no artefato `crowdash-windows-test`. Não cria uma release automaticamente. O computador de destino ainda precisa de yt-dlp e FFmpeg para downloads e conversões reais; Node.js e Rust são necessários apenas para desenvolvimento. Consulte [o guia do Windows](docs/WINDOWS.md).
+Em **Actions → Windows — instalador de teste**, execute **Run workflow**. A branch `release/windows-v0.1.0` também dispara a geração ao receber um push. A execução testa o projeto, prepara versões fixas de yt-dlp, FFmpeg/ffprobe e Deno com SHA256 verificado e compila o instalador NSIS com a extensão incluída. Antes de finalizar, instala o pacote, testa downloads locais pelo app instalado sem ferramentas externas no PATH e testa a desinstalação. O artefato `crowdash-windows-test` inclui o `.exe`, a extensão, manifestos e checksum. Consulte [o guia do Windows](docs/WINDOWS.md).
+
+Para compilar esse pacote em um Windows de desenvolvimento com Python 3.11+ e os pré-requisitos nativos, execute `pnpm build:windows`. Esse perfil inclui os binários de mídia no instalador. `pnpm build:native` continua disponível para outros builds de desenvolvimento.
 
 ### Rodar os Testes Automatizados
 ```bash
