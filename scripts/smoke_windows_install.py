@@ -20,6 +20,32 @@ def execute(arguments, **options):
                           creationflags=subprocess.CREATE_NO_WINDOW, **options)
 
 
+def startup_diagnostics(process, log_path, expected_endpoint):
+    print(f"Startup timeout: PID={process.pid}, exit={process.poll()}, endpoint={expected_endpoint}", flush=True)
+    if log_path.exists():
+        print(log_path.read_text(encoding="utf-8", errors="replace")[-6000:], flush=True)
+    for base in ["APPDATA", "LOCALAPPDATA"]:
+        candidate = Path(os.environ[base]) / "Crowdash/native-messaging/endpoint.json"
+        print(f"{base} endpoint exists: {candidate.exists()}", flush=True)
+    try:
+        import ctypes
+        from ctypes import wintypes
+        user = ctypes.windll.user32
+        callback_type = ctypes.WINFUNCTYPE(wintypes.BOOL, wintypes.HWND, wintypes.LPARAM)
+        def inspect_window(handle, _):
+            pid = wintypes.DWORD()
+            user.GetWindowThreadProcessId(handle, ctypes.byref(pid))
+            if pid.value == process.pid:
+                text = ctypes.create_unicode_buffer(512)
+                user.GetWindowTextW(handle, text, len(text))
+                if text.value:
+                    print(f"Application window: {text.value}", flush=True)
+            return True
+        user.EnumWindows(callback_type(inspect_window), 0)
+    except Exception as error:
+        print(f"Window diagnostics: {error}", flush=True)
+
+
 def run(installer):
     if os.name != "nt" or os.environ.get("GITHUB_ACTIONS") != "true":
         raise RuntimeError("This installation smoke test runs only on the isolated Windows CI runner")
@@ -34,6 +60,10 @@ def run(installer):
     with tempfile.TemporaryDirectory(prefix="CrowDash installed test ") as folder:
         root = Path(folder)
         install = root / "CrowDash com espaços"
+        # Hosted runners can have no usable GPU. Exercise the same GUI with software rendering.
+        environment["WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS"] = "--disable-gpu"
+        environment["WEBVIEW2_USER_DATA_FOLDER"] = str(root / "webview-profile")
+        environment["RUST_LOG"] = "crowdash=debug,tauri=debug,wry=debug"
         try:
             result = subprocess.run(f'"{installer}" /S /D={install}', timeout=240, creationflags=subprocess.CREATE_NO_WINDOW)
             if result.returncode not in (0, 3010):
@@ -65,15 +95,18 @@ def run(installer):
             endpoint.unlink(missing_ok=True)
             log_dir = ROOT / "artifacts/windows"
             log_dir.mkdir(parents=True, exist_ok=True)
-            with (log_dir / "app-smoke.log").open("wb") as log:
+            log_path = log_dir / "app-smoke.log"
+            with log_path.open("wb") as log:
                 app = subprocess.Popen([str(executable)], env=environment, stdout=log, stderr=log)
-                for _ in range(120):
+                for _ in range(480):
                     if endpoint.exists():
                         break
                     if app.poll() is not None:
                         raise RuntimeError(f"Installed app exited before startup: {app.returncode}")
                     time.sleep(0.25)
-                assert endpoint.exists(), "Installed app did not start its native connection"
+                if not endpoint.exists():
+                    startup_diagnostics(app, log_path, endpoint)
+                    raise AssertionError("Installed app did not start its native connection within 120 seconds")
                 import winreg
                 for browser in [r"Google\Chrome", r"Microsoft\Edge", "Chromium"]:
                     with winreg.OpenKey(winreg.HKEY_CURRENT_USER, fr"Software\{browser}\NativeMessagingHosts\com.crowdash.host") as key:

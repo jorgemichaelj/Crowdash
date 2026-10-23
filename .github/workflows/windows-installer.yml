@@ -34,6 +34,13 @@ jobs:
           rustup toolchain install stable --profile minimal
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           rustup default stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            apps/desktop/src-tauri -> target
+            crates/download-core -> target
+            crates/extension-bridge -> target
+          cache-on-failure: true
       - name: Instalar dependências
         run: pnpm install --frozen-lockfile
       - name: Verificar TypeScript
