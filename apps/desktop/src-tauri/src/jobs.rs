@@ -477,7 +477,7 @@ fn build_convert_args(
     let container = options.container.as_deref().unwrap_or("mp4");
     let category = options.category.as_deref().unwrap_or("video");
 
-    let output = format!("{}\\{}.{}", output_folder, stem, container);
+    let output = Path::new(output_folder).join(format!("{stem}.{container}")).to_string_lossy().into_owned();
 
     let mut args: Vec<String> = vec![
         "-y".to_string(),
@@ -519,6 +519,8 @@ fn build_convert_args(
     // Vídeo: escolher encoder
     let video_codec = if hw_accel == "auto" {
         detect_best_video_encoder(container)
+    } else if container == "webm" {
+        "libvpx-vp9".to_string()
     } else {
         "libx264".to_string()
     };
@@ -527,12 +529,11 @@ fn build_convert_args(
         "-codec:v".to_string(),
         video_codec,
         "-codec:a".to_string(),
-        "aac".to_string(),
+        if container == "webm" { "libopus".to_string() } else { "aac".to_string() },
         "-b:a".to_string(),
         "192k".to_string(),
-        "-movflags".to_string(),
-        "+faststart".to_string(),
     ]);
+    if matches!(container, "mp4" | "mov" | "m4v") { args.extend(["-movflags".into(), "+faststart".into()]); }
     args.push(output.clone());
 
     Ok((output, args))
@@ -546,7 +547,7 @@ fn build_trim_args(
         .extension()
         .and_then(|e| e.to_str())
         .unwrap_or("mp4");
-    let output = format!("{}\\{}_cortado.{}", output_folder, stem, ext);
+    let output = Path::new(output_folder).join(format!("{stem}_cortado.{ext}")).to_string_lossy().into_owned();
 
     let start = options.start_sec.unwrap_or(0.0);
     let end = options.end_sec.unwrap_or(60.0);
@@ -585,11 +586,7 @@ fn build_compress_args(
     output_folder: &str, stem: &str, hw_accel: &str,
     total_duration: f64,
 ) -> Result<(String, Vec<String>)> {
-    let ext = std::path::Path::new(input)
-        .extension()
-        .and_then(|e| e.to_str())
-        .unwrap_or("mp4");
-    let output = format!("{}\\{}_comprimido.{}", output_folder, stem, ext);
+    let output = Path::new(output_folder).join(format!("{stem}_comprimido.mp4")).to_string_lossy().into_owned();
 
     let target_mb = options.target_size_mb.unwrap_or(16.0);
     // Calcular bitrate total: target_bytes / duration_secs
@@ -604,7 +601,7 @@ fn build_compress_args(
     let video_bitrate = target_bitrate_kbps.saturating_sub(audio_bitrate);
 
     let video_codec = if hw_accel == "auto" {
-        detect_best_video_encoder(ext)
+        detect_best_video_encoder("mp4")
     } else {
         "libx264".to_string()
     };
@@ -629,7 +626,7 @@ fn build_extract_audio_args(
     output_folder: &str, stem: &str,
 ) -> Result<(String, Vec<String>)> {
     let fmt = options.format.as_deref().unwrap_or("mp3");
-    let output = format!("{}\\{}.{}", output_folder, stem, fmt);
+    let output = Path::new(output_folder).join(format!("{stem}.{fmt}")).to_string_lossy().into_owned();
 
     let mut args = vec![
         "-y".to_string(),
@@ -780,27 +777,10 @@ fn get_duration_secs(path: &str) -> f64 {
 }
 
 fn detect_best_video_encoder(container: &str) -> String {
-    // Tentar NVENC primeiro
-    let test = crate::tools::command(find_ffmpeg())
-        .args(["-hide_banner", "-encoders"])
-        .output();
-
-    if let Ok(out) = test {
-        let txt = String::from_utf8_lossy(&out.stdout).to_lowercase();
-        if container != "webm" {
-            if txt.contains("h264_nvenc") { return "h264_nvenc".to_string(); }
-            if txt.contains("h264_amf")  { return "h264_amf".to_string(); }
-            if txt.contains("h264_qsv")  { return "h264_qsv".to_string(); }
-        } else {
-            if txt.contains("vp9_vaapi") { return "vp9_vaapi".to_string(); }
-        }
-    }
-
-    if container == "webm" {
-        "libvpx-vp9".to_string()
-    } else {
-        "libx264".to_string()
-    }
+    if container == "webm" { return "libvpx-vp9".into(); }
+    match crate::hardware::detect_hardware().encoder.as_str() {
+        "nvenc" => "h264_nvenc", "amf" => "h264_amf", "qsv" => "h264_qsv", _ => "libx264",
+    }.into()
 }
 
 async fn emit_log(job_id: &str, msg: &str, manager: Arc<Mutex<JobManager>>) {
@@ -862,5 +842,65 @@ fn map_error_to_user_facing(err: &str) -> UserFacingError {
             technical_details: Some(err.to_string()),
             retryable: true,
         }
+    }
+}
+
+#[cfg(test)]
+mod file_operation_tests {
+    use super::*;
+
+    struct Fixture(std::path::PathBuf);
+    impl Fixture {
+        fn new() -> Self {
+            let root = std::env::temp_dir().join(format!("CrowDash mídia {}", uuid::Uuid::new_v4()));
+            std::fs::create_dir_all(&root).unwrap();
+            Self(root)
+        }
+    }
+    impl Drop for Fixture {
+        fn drop(&mut self) { let _ = std::fs::remove_dir_all(&self.0); }
+    }
+    fn ffmpeg(args: &[String]) {
+        let output = crate::tools::command(find_ffmpeg()).args(args).output().expect("FFmpeg is required for native file-operation tests");
+        assert!(output.status.success(), "{}", String::from_utf8_lossy(&output.stderr));
+    }
+    fn probe(path: &str) -> serde_json::Value {
+        let output = crate::tools::command(find_ffprobe()).args(["-v", "quiet", "-show_streams", "-of", "json", path]).output().unwrap();
+        assert!(output.status.success());
+        serde_json::from_slice(&output.stdout).unwrap()
+    }
+
+    #[test]
+    fn converts_webm_and_compresses_to_shareable_mp4_using_real_paths() {
+        let fixture = Fixture::new();
+        let source = fixture.0.join("vídeo original.mp4").to_string_lossy().into_owned();
+        ffmpeg(&["-v", "error", "-f", "lavfi", "-i", "testsrc=size=160x90:rate=10", "-f", "lavfi", "-i", "sine=frequency=440", "-t", "1", "-c:v", "libx264", "-pix_fmt", "yuv420p", "-c:a", "aac", &source].map(String::from));
+        let folder = fixture.0.to_str().unwrap();
+        let convert: FileOperationOptions = serde_json::from_value(serde_json::json!({"op":"convert","container":"webm","category":"video"})).unwrap();
+        let (webm, args) = build_convert_args(&source, &convert, folder, "vídeo convertido", "off").unwrap();
+        ffmpeg(&args);
+        assert_eq!(Path::new(&webm).parent(), Some(fixture.0.as_path()));
+        let streams = probe(&webm);
+        assert!(streams["streams"].as_array().unwrap().iter().any(|stream| stream["codec_name"] == "opus"));
+        let compress: FileOperationOptions = serde_json::from_value(serde_json::json!({"op":"compress","targetSizeMB":0.5})).unwrap();
+        let (mp4, args) = build_compress_args(&webm, &compress, folder, "vídeo final", "auto", 1.0).unwrap();
+        ffmpeg(&args);
+        assert!(mp4.ends_with("_comprimido.mp4"));
+        let streams = probe(&mp4);
+        for kind in ["video", "audio"] { assert!(streams["streams"].as_array().unwrap().iter().any(|stream| stream["codec_type"] == kind)); }
+        assert!(std::fs::metadata(mp4).unwrap().len() <= 512 * 1024);
+    }
+
+    #[test]
+    fn converts_a_selected_image_with_spaces_and_accents_in_its_path() {
+        let fixture = Fixture::new();
+        let source = fixture.0.join("imagem original.webp").to_string_lossy().into_owned();
+        ffmpeg(&["-v", "error", "-f", "lavfi", "-i", "color=blue:s=32x32", "-frames:v", "1", &source].map(String::from));
+        let options: FileOperationOptions = serde_json::from_value(serde_json::json!({"op":"convert","container":"png","category":"image"})).unwrap();
+        let (png, args) = build_convert_args(&source, &options, fixture.0.to_str().unwrap(), "imagem convertida", "off").unwrap();
+        ffmpeg(&args);
+        let streams = probe(&png);
+        assert_eq!(streams["streams"][0]["codec_name"], "png");
+        assert_eq!(Path::new(&png).parent(), Some(fixture.0.as_path()));
     }
 }

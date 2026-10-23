@@ -17,45 +17,33 @@ impl Default for HardwareInfo {
     }
 }
 
-/// Tenta detectar GPU via ffmpeg -encoders
+/// Test actual encoding support; listing encoders only reports compile-time features.
 pub fn detect_hardware() -> HardwareInfo {
-    let ffmpeg = find_ffmpeg();
-    let output = crate::tools::command(&ffmpeg)
-        .args(["-hide_banner", "-encoders"])
-        .output();
+    static HARDWARE: std::sync::OnceLock<HardwareInfo> = std::sync::OnceLock::new();
+    HARDWARE.get_or_init(probe_hardware).clone()
+}
 
-    let Ok(output) = output else {
-        tracing::warn!("ffmpeg não encontrado ou falhou — usando CPU");
-        return HardwareInfo::default();
-    };
-
-    let text = String::from_utf8_lossy(&output.stdout).to_lowercase();
-
-    if text.contains("h264_nvenc") {
-        tracing::info!("GPU detectada: NVIDIA (NVENC)");
-        return HardwareInfo {
-            gpu: "nvidia".to_string(),
-            encoder: "nvenc".to_string(),
-        };
+fn probe_hardware() -> HardwareInfo {
+    let output = crate::tools::command(find_ffmpeg()).args(["-hide_banner", "-encoders"]).output();
+    let Ok(output) = output else { return HardwareInfo::default(); };
+    let available = String::from_utf8_lossy(&output.stdout);
+    for (codec, gpu, encoder) in [("h264_nvenc", "nvidia", "nvenc"), ("h264_amf", "amd", "amf"), ("h264_qsv", "intel", "qsv")] {
+        if !available.contains(codec) { continue; }
+        let child = crate::tools::command(find_ffmpeg())
+            .args(["-v", "error", "-f", "lavfi", "-i", "color=black:s=128x128:r=1", "-frames:v", "1", "-an", "-c:v", codec, "-f", "null", "-"])
+            .stdout(std::process::Stdio::null()).stderr(std::process::Stdio::null()).spawn();
+        let Ok(mut child) = child else { continue; };
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(3);
+        loop {
+            match child.try_wait() {
+                Ok(Some(status)) if status.success() => return HardwareInfo { gpu: gpu.into(), encoder: encoder.into() },
+                Ok(Some(_)) => break,
+                Err(_) => { let _ = child.kill(); let _ = child.wait(); break; },
+                _ if std::time::Instant::now() >= deadline => { let _ = child.kill(); let _ = child.wait(); break; },
+                _ => std::thread::sleep(std::time::Duration::from_millis(25)),
+            }
+        }
     }
-
-    if text.contains("h264_amf") {
-        tracing::info!("GPU detectada: AMD (AMF)");
-        return HardwareInfo {
-            gpu: "amd".to_string(),
-            encoder: "amf".to_string(),
-        };
-    }
-
-    if text.contains("h264_qsv") {
-        tracing::info!("GPU detectada: Intel (QSV)");
-        return HardwareInfo {
-            gpu: "intel".to_string(),
-            encoder: "qsv".to_string(),
-        };
-    }
-
-    tracing::info!("Nenhuma GPU de hardware detectada — usando CPU");
     HardwareInfo::default()
 }
 

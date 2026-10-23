@@ -8,6 +8,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: windows-installer-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   installer:
     runs-on: windows-2022
@@ -45,9 +49,23 @@ jobs:
       - name: Preparar ferramentas incluídas no instalador
         run: python scripts/prepare_windows_runtime.py
       - name: Compilar instalador Windows e incluir a extensão
-        run: pnpm --filter @crowdash/desktop build:native --config src-tauri/tauri.windows-release.conf.json --bundles nsis
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Continue'
+          New-Item -ItemType Directory -Force artifacts/windows | Out-Null
+          pnpm --filter @crowdash/desktop build:native --config src-tauri/tauri.windows-release.conf.json --bundles nsis *>&1 | Tee-Object artifacts/windows/build.log
+          $buildExit = $LASTEXITCODE
+          if ($buildExit -ne 0) {
+            $detail = (Get-Content artifacts/windows/build.log -Tail 35) -join "`n"
+            $detail = $detail.Replace('%', '%25').Replace("`r", '%0D').Replace("`n", '%0A')
+            Write-Output "::error title=Erro ao compilar o instalador::$detail"
+          }
+          exit $buildExit
       - name: Testar resolução das ferramentas do aplicativo
-        run: cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml --lib --locked
+        shell: pwsh
+        run: |
+          $env:PATH = "$pwd/apps/desktop/src-tauri/runtime/windows-x64;$env:PATH"
+          cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml --lib --locked
       - name: Preparar arquivos para teste
         shell: pwsh
         run: |
