@@ -12,40 +12,26 @@ export function HomeView() {
   const pendingUrl = useAppStore(s => s.pendingDownloadUrl);
   useEffect(() => { if (pendingUrl) setActiveTab('download'); }, [pendingUrl]);
 
-  const tabs: { id: HomeUtilityTab; label: string; icon: any; desc: string }[] = [
+  const tabs: { id: HomeUtilityTab; label: string; icon: any }[] = [
     {
       id: 'download',
       label: 'Baixar da Web',
       icon: Download,
-      desc: 'Vídeos, Músicas, Playlists e Canais',
     },
     {
       id: 'convert',
       label: 'Converter Arquivos',
       icon: RefreshCw,
-      desc: 'Fotos (WebP ➔ PNG), Vídeos e Músicas',
     },
     {
       id: 'compress',
       label: 'Comprimir',
       icon: Minimize2,
-      desc: 'Reduzir para Discord e WhatsApp',
     },
   ];
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
-      <section className="py-4 sm:py-7">
-        <div className="space-y-3">
-          <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-primary">Seu próximo download começa aqui</p>
-          <h1 className="text-3xl sm:text-4xl font-semibold tracking-tight text-foreground leading-tight">
-            Sua mídia.<br /><span className="text-primary">Do seu jeito.</span>
-          </h1>
-          <p className="text-sm text-muted-foreground max-w-md leading-relaxed">
-            Baixe o que importa. Converta quando precisar. Comprima para compartilhar.
-          </p>
-        </div>
-      </section>
       {/* Barra de Seleção das Utilidades no Topo */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 p-1.5 bg-muted/40 rounded-2xl border border-border">
         {tabs.map((tab) => {
@@ -77,9 +63,6 @@ export function HomeView() {
                 <strong className="text-xs font-semibold block leading-tight text-foreground">
                   {tab.label}
                 </strong>
-                <span className="text-[10px] text-muted-foreground line-clamp-1 mt-0.5">
-                  {tab.desc}
-                </span>
               </div>
             </button>
           );

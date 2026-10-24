@@ -339,13 +339,50 @@ async fn run_download_job(
     let MediaUrl::Video { url, .. } = classify_url(url)? else {
         return Err(anyhow!("URL_INVALID: escolha explicitamente uma playlist ou um canal"));
     };
+    let video_id = url
+        .strip_prefix("https://www.youtube.com/watch?v=")
+        .map(|value| value.split('&').next().unwrap_or(value));
     std::fs::create_dir_all(output_folder)?;
-    let mut args: Vec<String> = ["--ignore-config", "--no-warnings", "--no-simulate", "--progress", "--newline", "--no-playlist", "--socket-timeout", "30", "--retries", "3", "--windows-filenames"].map(String::from).to_vec();
+    let mut args: Vec<String> = ["--ignore-config", "--no-warnings", "--no-colors", "--no-simulate", "--progress", "--newline", "--no-playlist", "--socket-timeout", "30", "--retries", "3", "--windows-filenames"].map(String::from).to_vec();
     args.extend(crate::tools::ytdlp_args());
     args.extend(format_args(&options.mode, &options.quality, &options.container)?);
     args.extend(["-P".into(), output_folder.into(), "-o".into(), "%(title)s [%(id)s].%(ext)s".into(), "--print".into(), "after_move:CROWDASH_FILE:%(filepath)s".into(), "--".into(), url]);
-    run_with_progress(job_id, &find_ytdlp(), &args, ProgressParser::YtDlp, manager).await?
-        .ok_or_else(|| anyhow!("Nenhum arquivo de saída foi informado pelo yt-dlp"))
+    let reported_path = run_with_progress(job_id, &find_ytdlp(), &args, ProgressParser::YtDlp, manager).await?;
+    if let Some(path) = reported_path {
+        return Ok(path);
+    }
+
+    newest_media_file(Path::new(output_folder), video_id)
+        .map(|path| path.to_string_lossy().into_owned())
+        .ok_or_else(|| anyhow!("O yt-dlp terminou sem localizar o arquivo baixado em {output_folder}"))
+}
+
+fn newest_media_file(folder: &Path, video_id: Option<&str>) -> Option<std::path::PathBuf> {
+    let mut newest: Option<(std::time::SystemTime, std::path::PathBuf)> = None;
+    for entry in std::fs::read_dir(folder).ok()?.flatten() {
+        let path = entry.path();
+        if !path.is_file() {
+            continue;
+        }
+        let is_media = path.extension().and_then(|ext| ext.to_str()).is_some_and(|ext| {
+            matches!(ext.to_ascii_lowercase().as_str(), "mp3" | "m4a" | "wav" | "opus" | "mp4" | "mkv" | "webm" | "mov" | "avi")
+        });
+        if !is_media {
+            continue;
+        }
+        if let Some(video_id) = video_id {
+            let expected_suffix = format!(" [{video_id}].");
+            if !path.file_name()?.to_string_lossy().contains(&expected_suffix) {
+                continue;
+            }
+        }
+        let Ok(metadata) = entry.metadata() else { continue };
+        let modified = metadata.modified().unwrap_or(std::time::UNIX_EPOCH);
+        if newest.as_ref().map_or(true, |(current, _)| modified > *current) {
+            newest = Some((modified, path));
+        }
+    }
+    newest.map(|(_, path)| path)
 }
 
 // ─── Batch Download (canal/playlist) ─────────────────────────────────────────
@@ -699,7 +736,10 @@ async fn run_with_progress(
             }
             line = receiver.recv() => {
                 let Some(line) = line else { break; };
-                if let Some(path) = line.strip_prefix("CROWDASH_FILE:") { output_path = Some(path.to_string()); }
+                if let Some((_, path)) = line.split_once("CROWDASH_FILE:") {
+                    let path = path.trim().trim_matches('\u{1b}');
+                    if !path.is_empty() { output_path = Some(path.to_string()); }
+                }
                 let progress = match parser {
                     ProgressParser::FFmpeg { total_duration } => parse_ffmpeg_progress(&line, total_duration),
                     ProgressParser::YtDlp => parse_ytdlp_progress(&line),

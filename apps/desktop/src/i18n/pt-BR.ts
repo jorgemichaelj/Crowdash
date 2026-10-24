@@ -1,7 +1,6 @@
 export const ptBR = {
   app: {
     name: 'CrowDash',
-    tagline: 'Rápido e simples para baixar, converter e comprimir mídia',
   },
   nav: {
     home: 'Início',
