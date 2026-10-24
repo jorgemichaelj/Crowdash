@@ -341,7 +341,7 @@ async fn run_download_job(
     };
     let video_id = url
         .strip_prefix("https://www.youtube.com/watch?v=")
-        .map(|value| value.split('&').next().unwrap_or(value));
+        .map(|value| value.split('&').next().unwrap_or(value).to_owned());
     std::fs::create_dir_all(output_folder)?;
     let mut args: Vec<String> = ["--ignore-config", "--no-warnings", "--no-colors", "--no-simulate", "--progress", "--newline", "--no-playlist", "--socket-timeout", "30", "--retries", "3", "--windows-filenames"].map(String::from).to_vec();
     args.extend(crate::tools::ytdlp_args());
@@ -352,7 +352,7 @@ async fn run_download_job(
         return Ok(path);
     }
 
-    newest_media_file(Path::new(output_folder), video_id)
+    newest_media_file(Path::new(output_folder), video_id.as_deref())
         .map(|path| path.to_string_lossy().into_owned())
         .ok_or_else(|| anyhow!("O yt-dlp terminou sem localizar o arquivo baixado em {output_folder}"))
 }
